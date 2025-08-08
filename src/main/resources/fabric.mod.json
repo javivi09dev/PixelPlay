@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "pixelplay",
+  "version": "${version}",
+  "name": "PixelPlay",
+  "description": "Plays videos in GUI",
+  "authors": [],
+  "contact": {},
+  "license": "All-Rights-Reserved",
+  "icon": "assets/pixelplay/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "fabric-datagen": [
+      "me.javivi.pp.client.PixelplayDataGenerator"
+    ],
+    "client": [
+      "me.javivi.pp.client.PixelplayClient"
+    ],
+    "main": [
+      "me.javivi.pp.Pixelplay"
+    ]
+  },
+  "mixins": [
+    "pixelplay.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
