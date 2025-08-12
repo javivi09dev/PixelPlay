@@ -3,9 +3,12 @@
   "id": "pixelplay",
   "version": "${version}",
   "name": "PixelPlay",
-  "description": "Plays videos in GUI",
-  "authors": [],
+  "description": "Plays videos, fades and audio for players easily!",
+  "authors": [
+    "Javivi"
+  ],
   "contact": {},
+  "url": "https://javivi.dev",
   "license": "All-Rights-Reserved",
   "icon": "assets/pixelplay/icon.png",
   "environment": "*",
@@ -24,8 +27,9 @@
     "pixelplay.mixins.json"
   ],
   "depends": {
-    "fabricloader": ">=${loader_version}",
+    "fabricloader": ">=0.16.0",
     "fabric": "*",
-    "minecraft": "${minecraft_version}"
+    "minecraft": "${minecraft_version}",
+    "watermedia": ">=2.1.0"
   }
 }

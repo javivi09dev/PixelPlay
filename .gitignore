@@ -4,7 +4,8 @@
 *.iml
 *.ipr
 *.iws
-
+.vscode/
+bin/
 # IntelliJ
 out/
 # mpeltonen/sbt-idea plugin
