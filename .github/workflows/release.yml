@@ -1,18 +1,18 @@
-name: Build & Release Mod
+name: Build and Publish
 
 on:
   push:
-    branches:
-      - master
+    branches: ['*']
+  pull_request:
+    branches: [main]
 
 permissions:
-  contents: write
-
+  contents: write 
+  
 jobs:
   build:
     runs-on: ubuntu-latest
-    outputs:
-      mod_version: ${{ steps.get_version.outputs.mod_version }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -21,70 +21,29 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: 21
+          java-version: '21'
 
-      - name: Cache Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
 
-      - name: Read mod version
-        id: get_version
-        run: |
-          VERSION=$(grep "^mod_version" gradle.properties | cut -d'=' -f2 | tr -d ' ')
-          echo "mod_version=$VERSION" >> $GITHUB_OUTPUT
-        shell: bash
-
-      - name: Grant execute permission for Gradle
+      - name: Grant execute permission for gradlew
         run: chmod +x gradlew
+      - name: Leer mod_version desde gradle.properties
+        id: version
+        uses: BrycensRanch/read-properties-action@v1
+        with:
+          file: gradle.properties
+          property: mod_version
+          default: 0.0.1
 
       - name: Build with Gradle
         run: ./gradlew build
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: mod-jar
-          path: build/libs/*.jar
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: mod-jar
-          path: ./build/libs
-      - name: Create Git tag
-        run: |
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git tag ${{ needs.build.outputs.mod_version }}
-            git push origin ${{ needs.build.outputs.mod_version }}    
-      - name: Create Release
-        id: create_release
+      - name: Publish release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ needs.build.outputs.mod_version }}
-          name: "Release ${{ needs.build.outputs.mod_version }}"
-          body: |
-            Automatic release for version ${{ needs.build.outputs.mod_version }}.
-            From commit ${{ github.sha }}.
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Release Asset
-        uses: softprops/action-gh-release@v1
-        with:
-          files: ./build/libs/*.jar
+          tag_name: v${{ steps.version.outputs.mod_version }}
+          name: Versión ${{ steps.version.outputs.mod_version }}
+          files: build/libs/*.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
