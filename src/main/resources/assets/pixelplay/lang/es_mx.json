@@ -1,3 +1,18 @@
 {
-    "options.pixelplay.multimedia_volume": "Multimedia"
+    "options.pixelplay.multimedia_volume": "Multimedia",
+    "options.pixelplay.multimedia_volume.value": "Multimedia: %s%%",
+
+    "message.pixelplay.video_started": "§a[PixelPlay] Vídeo iniciado",
+    "message.pixelplay.video_with_ease": "§a[PixelPlay] Vídeo con transición iniciado",
+    "message.pixelplay.video_stopped": "§c[PixelPlay] Vídeo detenido",
+    "message.pixelplay.audio_started": "§a[PixelPlay] Audio iniciado",
+    "message.pixelplay.audio_with_ease": "§a[PixelPlay] Audio con transición iniciado",
+    "message.pixelplay.audio_stopped": "§c[PixelPlay] Audio detenido",
+    "message.pixelplay.screen_url_set": "§b[PixelPlay] URL de pantalla establecida",
+    "message.pixelplay.screen_stopped": "§c[PixelPlay] Pantalla detenida",
+    "message.pixelplay.screen_region_cleared": "§e[PixelPlay] Región de pantalla limpiada",
+    "message.pixelplay.screen_corner_bottom": "§e[PixelPlay] Esquina inferior fijada",
+    "message.pixelplay.screen_corner_top": "§e[PixelPlay] Esquina superior fijada",
+    "message.pixelplay.invalid_url": "§c[PixelPlay] URL inválida",
+    "message.pixelplay.vlc_not_ready": "§c[PixelPlay] VLC no está listo"
 }

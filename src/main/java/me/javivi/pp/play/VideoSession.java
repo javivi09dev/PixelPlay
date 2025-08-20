@@ -69,13 +69,13 @@ public final class VideoSession {
         this.player = new CustomVideoPlayer(factory, r -> this.mc.execute(r));
         try {
             if (!PlayerAPI.isReady()) {
-                this.error = "VLC no está listo";
+                this.error = "message.pixelplay.vlc_not_ready";
             } else {
                 if (!freezeScreen) this.player.start(new URI(url));
                 else this.player.startPaused(new URI(url));
             }
         } catch (URISyntaxException e) {
-            this.error = "URL inválida";
+            this.error = "message.pixelplay.invalid_url";
         } catch (Throwable t) {
             this.error = t.getMessage();
         }

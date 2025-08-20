@@ -36,7 +36,7 @@ public final class PixelPlayCommand {
                             .executes(ctx -> {
                                 boolean freeze = BoolArgumentType.getBool(ctx, "freeze_screen");
                                 String url = cleanUrl(StringArgumentType.getString(ctx, "url"));
-                                if (!isValidUrl(url)) { ctx.getSource().sendError(Text.literal("URL inválida")); return 0; }
+                                if (!isValidUrl(url)) { ctx.getSource().sendError(Text.translatable("message.pixelplay.invalid_url")); return 0; }
                                 if (ctx.getSource().getServer().isSingleplayer()) {
                                     MinecraftClient.getInstance().execute(() -> {
                                         var color = false ? VideoSession.EaseColor.WHITE : VideoSession.EaseColor.BLACK;
@@ -50,7 +50,7 @@ public final class PixelPlayCommand {
                                         ServerPlayNetworking.send(p, payload);
                                     }
                                 }
-                                ctx.getSource().sendFeedback(() -> Text.literal("PixelPlay: vídeo iniciado"), false);
+                                ctx.getSource().sendFeedback(() -> Text.translatable("message.pixelplay.video_started"), false);
                                 return 1;
                             })
                         )
@@ -71,7 +71,7 @@ public final class PixelPlayCommand {
                                             double outro = clamp(DoubleArgumentType.getDouble(ctx, "outrosecondsofease"), 0, 600);
                                             boolean freeze = BoolArgumentType.getBool(ctx, "freeze_screen");
                                             String url = cleanUrl(StringArgumentType.getString(ctx, "url"));
-                                            if (!isValidUrl(url)) { ctx.getSource().sendError(Text.literal("URL inválida")); return 0; }
+                                            if (!isValidUrl(url)) { ctx.getSource().sendError(Text.translatable("message.pixelplay.invalid_url")); return 0; }
                                             boolean white = color.equalsIgnoreCase("white") || color.equalsIgnoreCase("whiteease");
                                             if (ctx.getSource().getServer().isSingleplayer()) {
                                                 MinecraftClient.getInstance().execute(() -> {
@@ -86,7 +86,7 @@ public final class PixelPlayCommand {
                                                     ServerPlayNetworking.send(p, payload);
                                                 }
                                             }
-                                            ctx.getSource().sendFeedback(() -> Text.literal("PixelPlay: vídeo con ease"), false);
+                                            ctx.getSource().sendFeedback(() -> Text.translatable("message.pixelplay.video_with_ease"), false);
                                             return 1;
                                         })
                                     )
@@ -102,11 +102,11 @@ public final class PixelPlayCommand {
                         .suggests((ctx, b) -> { b.suggest("https://"); return b.buildFuture(); })
                         .executes(ctx -> {
                             String url = cleanUrl(StringArgumentType.getString(ctx, "url"));
-                            if (!isValidUrl(url)) { ctx.getSource().sendError(Text.literal("URL inválida")); return 0; }
+                            if (!isValidUrl(url)) { ctx.getSource().sendError(Text.translatable("message.pixelplay.invalid_url")); return 0; }
                             Collection<ServerPlayerEntity> targets = EntityArgumentType.getPlayers(ctx, "targets");
                             var payload = new StartAudioPayload(url, 0, 0);
                             for (ServerPlayerEntity p : targets) ServerPlayNetworking.send(p, payload);
-                            ctx.getSource().sendFeedback(() -> Text.literal("PixelPlay: audio iniciado"), false);
+                            ctx.getSource().sendFeedback(() -> Text.translatable("message.pixelplay.audio_started"), false);
                             return 1;
                         })
                     )
@@ -122,11 +122,11 @@ public final class PixelPlayCommand {
                                     double intro = clamp(DoubleArgumentType.getDouble(ctx, "introsecondsofease"), 0, 600);
                                     double outro = clamp(DoubleArgumentType.getDouble(ctx, "outrosecondsofease"), 0, 600);
                                     String url = cleanUrl(StringArgumentType.getString(ctx, "url"));
-                                    if (!isValidUrl(url)) { ctx.getSource().sendError(Text.literal("URL inválida")); return 0; }
+                                    if (!isValidUrl(url)) { ctx.getSource().sendError(Text.translatable("message.pixelplay.invalid_url")); return 0; }
                                     Collection<ServerPlayerEntity> targets = EntityArgumentType.getPlayers(ctx, "targets");
                                     var payload = new StartAudioPayload(url, intro, outro);
                                     for (ServerPlayerEntity p : targets) ServerPlayNetworking.send(p, payload);
-                                    ctx.getSource().sendFeedback(() -> Text.literal("PixelPlay: audio con ease"), false);
+                                    ctx.getSource().sendFeedback(() -> Text.translatable("message.pixelplay.audio_with_ease"), false);
                                     return 1;
                                 })
                             )
@@ -149,7 +149,7 @@ public final class PixelPlayCommand {
                                         var payload = new StartEasePayload(white, intro, total, outro);
                                         Collection<ServerPlayerEntity> targets = EntityArgumentType.getPlayers(ctx, "targets");
                                         for (ServerPlayerEntity p : targets) ServerPlayNetworking.send(p, payload);
-                                        ctx.getSource().sendFeedback(() -> Text.literal("PixelPlay: ease aplicado"), false);
+                                        ctx.getSource().sendFeedback(() -> Text.translatable("message.pixelplay.ease_applied"), false);
                                         return 1;
                                     })
                                 )
@@ -164,7 +164,7 @@ public final class PixelPlayCommand {
                         var payload = new StopVideoPayload();
                         Collection<ServerPlayerEntity> targets = EntityArgumentType.getPlayers(ctx, "targets");
                         for (ServerPlayerEntity p : targets) ServerPlayNetworking.send(p, payload);
-                        ctx.getSource().sendFeedback(() -> Text.literal("PixelPlay: vídeo detenido"), false);
+                        ctx.getSource().sendFeedback(() -> Text.translatable("message.pixelplay.video_stopped"), false);
                         return 1;
                     })
                 )
@@ -175,7 +175,7 @@ public final class PixelPlayCommand {
                         var payload = new StopAudioPayload();
                         Collection<ServerPlayerEntity> targets = EntityArgumentType.getPlayers(ctx, "targets");
                         for (ServerPlayerEntity p : targets) ServerPlayNetworking.send(p, payload);
-                        ctx.getSource().sendFeedback(() -> Text.literal("PixelPlay: audio detenido"), false);
+                        ctx.getSource().sendFeedback(() -> Text.translatable("message.pixelplay.audio_stopped"), false);
                         return 1;
                     })
                 )
@@ -187,7 +187,7 @@ public final class PixelPlayCommand {
                             .executes(ctx -> {
                                 String url = cleanUrl(StringArgumentType.getString(ctx, "url"));
                                 boolean loop = BoolArgumentType.getBool(ctx, "loop");
-                                if (!isValidUrl(url)) { ctx.getSource().sendError(Text.literal("URL inválida")); return 0; }
+                                if (!isValidUrl(url)) { ctx.getSource().sendError(Text.translatable("message.pixelplay.invalid_url")); return 0; }
                                 if (ctx.getSource().getServer().isSingleplayer()) {
                                     MinecraftClient.getInstance().execute(() -> {
                                         var mc = MinecraftClient.getInstance();
@@ -202,7 +202,7 @@ public final class PixelPlayCommand {
                                         }
                                     });
                                 }
-                                ctx.getSource().sendFeedback(() -> Text.literal("PixelPlay: URL asignada a Screen"), false);
+                                ctx.getSource().sendFeedback(() -> Text.translatable("message.pixelplay.screen_url_set"), false);
                                 return 1;
                             })
                         )
@@ -218,7 +218,7 @@ public final class PixelPlayCommand {
                                     url = raw.substring(sp + 1).equals(tail) ? raw.substring(0, sp).trim() : raw;
                                 }
                             }
-                            if (!isValidUrl(url)) { ctx.getSource().sendError(Text.literal("URL inválida")); return 0; }
+                            if (!isValidUrl(url)) { ctx.getSource().sendError(Text.translatable("message.pixelplay.invalid_url")); return 0; }
                             if (ctx.getSource().getServer().isSingleplayer()) {
                                 boolean finalLoop = loop;
                                 String finalUrl = url;
@@ -235,7 +235,7 @@ public final class PixelPlayCommand {
                                     }
                                 });
                             }
-                            ctx.getSource().sendFeedback(() -> Text.literal("PixelPlay: URL asignada a Screen"), false);
+                            ctx.getSource().sendFeedback(() -> Text.translatable("message.pixelplay.screen_url_set"), false);
                             return 1;
                         })
                     )
@@ -258,7 +258,7 @@ public final class PixelPlayCommand {
                                 }
                             });
                         }
-                        ctx.getSource().sendFeedback(() -> Text.literal("PixelPlay: Screen detenido"), false);
+                        ctx.getSource().sendFeedback(() -> Text.translatable("message.pixelplay.screen_stopped"), false);
                         return 1;
                     })
                 )
@@ -280,7 +280,7 @@ public final class PixelPlayCommand {
                                     }
                                 });
                             }
-                            ctx.getSource().sendFeedback(() -> Text.literal("PixelPlay: región explícita limpiada"), false);
+                            ctx.getSource().sendFeedback(() -> Text.translatable("message.pixelplay.screen_region_cleared"), false);
                             return 1;
                         })
                     )
@@ -311,9 +311,9 @@ public final class PixelPlayCommand {
                                         }
                                     });
                                 }
-                                ctx.getSource().sendFeedback(() -> Text.literal("PixelPlay: esquina " + (second ? "superior" : "inferior") + " fijada"), false);
-                                return 1;
-                            })
+                                ctx.getSource().sendFeedback(() -> Text.translatable(second ? "message.pixelplay.screen_corner_top" : "message.pixelplay.screen_corner_bottom"), false);
+                        return 1;
+                    })
                         )
                     )
                 )

@@ -12,13 +12,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(InGameHud.class)
 public abstract class InGameHudMixin {
 
-    // Inserta después de renderizar HUD para que el ease tape todo (crosshair, hotbar, chat)
     @Inject(method = "render", at = @At(value = "TAIL"))
     private void pixelplay$renderEaseOnTop(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
         var overlay = PixelplayClient.getOverlay();
         if (overlay == null) return;
-        // Re-render solo la capa de ease por encima del HUD
-        // Reutilizamos el método existente: el overlay ya dibuja ease al final
         overlay.render(context, tickCounter.getTickDelta(true));
     }
 }

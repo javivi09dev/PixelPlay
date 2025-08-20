@@ -1,3 +1,18 @@
 {
-    "options.pixelplay.multimedia_volume": "Multimedia"
+  "options.pixelplay.multimedia_volume": "Multimedia",
+  "options.pixelplay.multimedia_volume.value": "Multimedia: %s%%",
+
+  "message.pixelplay.video_started": "§a[PixelPlay] Video started",
+  "message.pixelplay.video_with_ease": "§a[PixelPlay] Video with ease started",
+  "message.pixelplay.video_stopped": "§c[PixelPlay] Video stopped",
+  "message.pixelplay.audio_started": "§a[PixelPlay] Audio started",
+  "message.pixelplay.audio_with_ease": "§a[PixelPlay] Audio with ease started",
+  "message.pixelplay.audio_stopped": "§c[PixelPlay] Audio stopped",
+  "message.pixelplay.screen_url_set": "§b[PixelPlay] Screen URL set",
+  "message.pixelplay.screen_stopped": "§c[PixelPlay] Screen stopped",
+  "message.pixelplay.screen_region_cleared": "§e[PixelPlay] Screen region cleared",
+  "message.pixelplay.screen_corner_bottom": "§e[PixelPlay] Screen bottom-left corner set",
+  "message.pixelplay.screen_corner_top": "§e[PixelPlay] Screen top-right corner set"
+  ,"message.pixelplay.invalid_url": "§c[PixelPlay] Invalid URL"
+  ,"message.pixelplay.vlc_not_ready": "§c[PixelPlay] VLC is not ready"
 }

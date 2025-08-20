@@ -50,14 +50,18 @@ public final class PlaybackManager {
     }
 
     public static void stopAudio() {
-        if (audioSession != null) audioSession.requestStop();
-        audioSession = null;
+        if (audioSession != null) {
+            try { audioSession.requestStop(); } catch (Throwable ignored) {}
+        }
     }
 
     public static void tick(MinecraftClient mc) {
         if (audioSession != null) {
             try {
                 audioSession.tick();
+                if (audioSession.isStopped()) {
+                    audioSession = null;
+                }
             } catch (Throwable ignored) {}
         }
         if (videoSession != null) {

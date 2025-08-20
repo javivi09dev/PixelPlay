@@ -22,7 +22,7 @@ public abstract class SoundOptionsScreenMixin {
         SimpleOption<Double> multimediaOption = new SimpleOption<>(
                 "options.pixelplay.multimedia_volume",
                 SimpleOption.emptyTooltip(),
-                (ignoredName, value) -> Text.literal("Multimedia: " + Math.round(value * 100.0) + "%"),
+                (ignoredName, value) -> Text.translatable("options.pixelplay.multimedia_volume.value", Math.round(value * 100.0)),
                 SimpleOption.DoubleSliderCallbacks.INSTANCE,
                 1.0,
                 value -> MultimediaVolume.setMasterMultiplier(value.floatValue())

@@ -18,6 +18,7 @@ public final class AudioSession {
     private final Easing.Curve easeCurve;
     private final long startMs;
     private volatile boolean stopping;
+    private volatile long stopStartMs = -1L;
     private volatile boolean stopped;
     private volatile @Nullable String error;
 
@@ -29,12 +30,12 @@ public final class AudioSession {
         this.startMs = System.currentTimeMillis();
         try {
             if (!PlayerAPI.isReady()) {
-                this.error = "VLC no está listo";
+                this.error = "message.pixelplay.vlc_not_ready";
             } else {
                 this.player.start(new URI(url));
             }
         } catch (URISyntaxException e) {
-            this.error = "URL inválida";
+            this.error = "message.pixelplay.invalid_url";
         } catch (Throwable t) {
             this.error = t.getMessage();
         }
@@ -60,8 +61,9 @@ public final class AudioSession {
             }
             player.setVolume(volumeTarget);
         } else {
+            if (stopStartMs < 0L) stopStartMs = now;
             if (outroMs > 0) {
-                long dt = now - startMs;
+                long dt = now - stopStartMs;
                 long used = Math.max(0L, Math.min(outroMs, dt));
                 float t = (float) used / (float) outroMs;
                 float k = 1.0f - Easing.ease(t, easeCurve);
@@ -77,6 +79,8 @@ public final class AudioSession {
     }
 
     public void requestStop() { this.stopping = true; }
+
+    public boolean isStopped() { return stopped; }
 
     private void stopNow() {
         if (stopped) return;
