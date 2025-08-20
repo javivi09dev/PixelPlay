@@ -13,7 +13,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    outputs:
+      mod_version: ${{ steps.get_version.outputs.mod_version }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -39,8 +40,8 @@ jobs:
         run: |
           VERSION=$(grep "^mod_version" gradle.properties | cut -d'=' -f2 | tr -d ' ')
           echo "mod_version=$VERSION" >> $GITHUB_ENV
-          echo "Versión detectada: $VERSION"
-          
+          echo "::set-output name=mod_version::$VERSION"
+
       - name: Grant execute permission for Gradle
         run: chmod +x gradlew
 
@@ -56,7 +57,6 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -71,10 +71,10 @@ jobs:
         id: create_release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ env.mod_version }}
-          name: "Release ${{ env.mod_version }}"
+          tag_name: ${{ needs.build.outputs.mod_version }}
+          name: "Release ${{ needs.build.outputs.mod_version }}"
           body: |
-            Automatic release for version ${{ env.mod_version }}.
+            Automatic release for version ${{ needs.build.outputs.mod_version }}.
             From commit ${{ github.sha }}.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
