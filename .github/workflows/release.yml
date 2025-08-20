@@ -4,8 +4,10 @@ on:
   push:
     branches:
       - master
+
 permissions:
   contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -35,8 +37,8 @@ jobs:
         id: get_version
         run: |
           VERSION=$(grep "^mod_version" gradle.properties | cut -d'=' -f2 | tr -d ' ')
-          echo "mod_version=$VERSION" >> $GITHUB_ENV
-          echo "::set-output name=mod_version::$VERSION"
+          echo "mod_version=$VERSION" >> $GITHUB_OUTPUT
+        shell: bash
 
       - name: Grant execute permission for Gradle
         run: chmod +x gradlew
