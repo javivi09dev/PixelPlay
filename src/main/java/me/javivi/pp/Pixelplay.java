@@ -13,5 +13,9 @@ public class Pixelplay implements ModInitializer {
         me.javivi.pp.registry.ModBlocks.register();
         me.javivi.pp.registry.ModBlockEntities.register();
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> PixelPlayCommand.register(dispatcher, registry));
+        
+        me.javivi.pp.screen.ScreenPreset.loadPresets();
+        
+        me.javivi.pp.screen.ScreenInteractionHandler.init();
     }
 }

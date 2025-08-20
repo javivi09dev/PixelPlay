@@ -22,6 +22,8 @@ public final class PlaybackManager {
 
     public static @Nullable VideoSession getVideoSession() { return videoSession; }
 
+    public static @Nullable AudioSession getAudioSession() { return audioSession; }
+
     public static void stopVideo() {
         try {
             if (videoSession != null) videoSession.stop();
