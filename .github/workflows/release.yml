@@ -5,11 +5,7 @@ on:
     branches:
       - master
 permissions:
-  contents: read
-  packages: write
-  actions: write
-  pull-requests: write
-
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
