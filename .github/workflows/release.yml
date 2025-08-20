@@ -43,7 +43,9 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ steps.version.outputs.mod_version }}
-          name: Versión ${{ steps.version.outputs.mod_version }}
+          name: Release ${{ steps.version.outputs.mod_version }}
+          body: Automatic release from commit ${{ github.sha }}.
+          draft: false
           files: build/libs/*.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
