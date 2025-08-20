@@ -3,13 +3,11 @@ name: Build & Release Mod
 on:
   push:
     branches:
-      - main
+      - master
 permissions:
   contents: read
   packages: write
   actions: write
-  id-token: write
-  issues: write
   pull-requests: write
 
 jobs:
