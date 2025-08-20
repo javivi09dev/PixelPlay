@@ -8,11 +8,10 @@
   "message.pixelplay.audio_started": "§a[PixelPlay] Audio started",
   "message.pixelplay.audio_with_ease": "§a[PixelPlay] Audio with ease started",
   "message.pixelplay.audio_stopped": "§c[PixelPlay] Audio stopped",
-  "message.pixelplay.screen_url_set": "§b[PixelPlay] Screen URL set",
+  "message.pixelplay.screen_area_set": "§a[PixelPlay] Screen area set (3x3)",
+  "message.pixelplay.screen_video_set": "§b[PixelPlay] Screen video set",
   "message.pixelplay.screen_stopped": "§c[PixelPlay] Screen stopped",
-  "message.pixelplay.screen_region_cleared": "§e[PixelPlay] Screen region cleared",
-  "message.pixelplay.screen_corner_bottom": "§e[PixelPlay] Screen bottom-left corner set",
-  "message.pixelplay.screen_corner_top": "§e[PixelPlay] Screen top-right corner set"
+  "message.pixelplay.screen_cleared": "§e[PixelPlay] Screen area cleared"
   ,"message.pixelplay.invalid_url": "§c[PixelPlay] Invalid URL"
   ,"message.pixelplay.vlc_not_ready": "§c[PixelPlay] VLC is not ready"
 }

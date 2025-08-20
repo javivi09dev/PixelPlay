@@ -36,6 +36,9 @@ dependencies {
 
     // WaterMedia multimedia API
     modImplementation "com.github.WaterMediaTeam:watermedia:2.1.28"
+    
+    // Gson for JSON handling
+    implementation "com.google.code.gson:gson:2.10.1"
 }
 
 processResources {

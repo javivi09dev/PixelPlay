@@ -70,14 +70,13 @@ public class ScreenBlock extends BlockWithEntity {
             var be = world.getBlockEntity(pos);
             if (be instanceof ScreenBlockEntity sbe) {
                 if (world.isClient) {
-                    sbe.stopPlayer();
+                    sbe.stopVideo();
                 }
-                sbe.clearUrl();
                 if (world.isClient) {
                     for (Direction d : Direction.values()) {
                         var nb = world.getBlockEntity(pos.offset(d));
                         if (nb instanceof ScreenBlockEntity s) {
-                            s.ensureRegionComputed();
+                            s.clearScreenArea();
                         }
                     }
                 }
