@@ -40,6 +40,9 @@ jobs:
           VERSION=$(grep "^mod_version" gradle.properties | cut -d'=' -f2 | tr -d ' ')
           echo "mod_version=$VERSION" >> $GITHUB_ENV
           echo "Versión detectada: $VERSION"
+          
+      - name: Grant execute permission for Gradle
+        run: chmod +x gradlew
 
       - name: Build with Gradle
         run: ./gradlew build
