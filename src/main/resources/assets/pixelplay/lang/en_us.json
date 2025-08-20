@@ -11,7 +11,13 @@
   "message.pixelplay.screen_area_set": "§a[PixelPlay] Screen area set (3x3)",
   "message.pixelplay.screen_video_set": "§b[PixelPlay] Screen video set",
   "message.pixelplay.screen_stopped": "§c[PixelPlay] Screen stopped",
-  "message.pixelplay.screen_cleared": "§e[PixelPlay] Screen area cleared"
-  ,"message.pixelplay.invalid_url": "§c[PixelPlay] Invalid URL"
-  ,"message.pixelplay.vlc_not_ready": "§c[PixelPlay] VLC is not ready"
+  "message.pixelplay.screen_cleared": "§e[PixelPlay] Screen area cleared",
+  "message.pixelplay.invalid_url": "§c[PixelPlay] Invalid URL",
+  "message.pixelplay.vlc_not_ready": "§c[PixelPlay] VLC is not ready",
+  "message.pixelplay.screen_setup_started": "§a[PixelPlay] §eSetup started! Click on the first screen block.",
+  "message.pixelplay.screen_first_block_selected": "§a[PixelPlay] §eFirst block selected at %d, %d, %d. Click on the second block.",
+  "message.pixelplay.screen_second_block_selected": "§a[PixelPlay] §eSecond block selected at %d, %d, %d. Type: /pixelplay screen setup name <preset_name>",
+  "message.pixelplay.screen_no_active_setup": "§c[PixelPlay] No active setup. Use /pixelplay screen setup to start.",
+  "message.pixelplay.screen_setup_incomplete": "§c[PixelPlay] Setup incomplete. Select both blocks first.",
+  "message.pixelplay.screen_preset_created": "§a[PixelPlay] §aPreset '%s' created successfully!"
 }

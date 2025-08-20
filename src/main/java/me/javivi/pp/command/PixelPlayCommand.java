@@ -198,7 +198,7 @@ public final class PixelPlayCommand {
                         }
                         
                         me.javivi.pp.screen.ScreenSetupManager.startSetup(player.getUuid());
-                        ctx.getSource().sendFeedback(() -> Text.literal("§a[PixelPlay] §eSetup iniciado! Haz click en el primer bloque de la pantalla."), false);
+                        ctx.getSource().sendFeedback(() -> Text.translatable("message.pixelplay.screen_setup_started"), false);
                         return 1;
                     })
                 )

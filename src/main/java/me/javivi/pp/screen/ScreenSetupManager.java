@@ -57,29 +57,26 @@ public class ScreenSetupManager {
         
         if (state.getFirstBlock() == null) {
             state.setFirstBlock(pos);
-            source.sendFeedback(() -> Text.literal("§a[PixelPlay] §ePrimer bloque seleccionado en " + pos + ". Haz click en el segundo bloque."), false);
+            source.sendFeedback(() -> Text.translatable("message.pixelplay.screen_first_block_selected", pos.getX(), pos.getY(), pos.getZ()), false);
         } else if (state.getSecondBlock() == null) {
             state.setSecondBlock(pos);
-            source.sendFeedback(() -> Text.literal("§a[PixelPlay] §eSegundo bloque seleccionado en " + pos + ". Escribe: /pixelplay screen setup name <nombre_del_preset>"), false);
+            source.sendFeedback(() -> Text.translatable("message.pixelplay.screen_second_block_selected", pos.getX(), pos.getY(), pos.getZ()), false);
         }
     }
     
     public static void completeSetup(UUID playerId, String presetId, ServerCommandSource source) {
         SetupState state = getSetup(playerId);
         if (state == null) {
-            source.sendError(Text.literal("§c[PixelPlay] No hay setup activo. Usa /pixelplay screen setup para empezar."));
+            source.sendError(Text.translatable("message.pixelplay.screen_no_active_setup"));
             return;
         }
         
         if (state.getFirstBlock() == null || state.getSecondBlock() == null) {
-            source.sendError(Text.literal("§c[PixelPlay] Setup incompleto. Selecciona ambos bloques primero."));
+            source.sendError(Text.translatable("message.pixelplay.screen_setup_incomplete"));
             return;
         }
         
-        // Debug: mostrar información del setup
-        source.sendFeedback(() -> Text.literal("§a[PixelPlay] §eDebug: Primer bloque: " + state.getFirstBlock() + ", Segundo bloque: " + state.getSecondBlock()), false);
-        
-        // Crear el preset
+        // Create the preset
         BlockPos min = new BlockPos(
             Math.min(state.getFirstBlock().getX(), state.getSecondBlock().getX()),
             Math.min(state.getFirstBlock().getY(), state.getSecondBlock().getY()),
@@ -93,9 +90,9 @@ public class ScreenSetupManager {
         );
         
         ScreenPreset.addPreset(presetId, min, max);
-        source.sendFeedback(() -> Text.literal("§a[PixelPlay] §aPreset '" + presetId + "' creado exitosamente!"), false);
+        source.sendFeedback(() -> Text.translatable("message.pixelplay.screen_preset_created", presetId), false);
         
-        // Limpiar el setup
+        // Clean up setup
         removeSetup(playerId);
     }
 }

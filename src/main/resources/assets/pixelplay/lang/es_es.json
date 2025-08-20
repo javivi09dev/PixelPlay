@@ -11,7 +11,13 @@
   "message.pixelplay.screen_area_set": "§a[PixelPlay] Área de pantalla establecida (3x3)",
   "message.pixelplay.screen_video_set": "§b[PixelPlay] Video de pantalla establecido",
   "message.pixelplay.screen_stopped": "§c[PixelPlay] Pantalla detenida",
-  "message.pixelplay.screen_cleared": "§e[PixelPlay] Área de pantalla limpiada"
-  ,"message.pixelplay.invalid_url": "§c[PixelPlay] URL inválida"
-  ,"message.pixelplay.vlc_not_ready": "§c[PixelPlay] VLC no está listo"
+  "message.pixelplay.screen_cleared": "§e[PixelPlay] Área de pantalla limpiada",
+  "message.pixelplay.invalid_url": "§c[PixelPlay] URL inválida",
+  "message.pixelplay.vlc_not_ready": "§c[PixelPlay] VLC no está listo",
+  "message.pixelplay.screen_setup_started": "§a[PixelPlay] §eSetup iniciado! Haz click en el primer bloque de pantalla.",
+  "message.pixelplay.screen_first_block_selected": "§a[PixelPlay] §ePrimer bloque seleccionado en %d, %d, %d. Haz click en el segundo bloque.",
+  "message.pixelplay.screen_second_block_selected": "§a[PixelPlay] §eSegundo bloque seleccionado en %d, %d, %d. Escribe: /pixelplay screen setup name <preset_name>",
+  "message.pixelplay.screen_no_active_setup": "§c[PixelPlay] No hay setup activo. Usa /pixelplay screen setup para empezar.",
+  "message.pixelplay.screen_setup_incomplete": "§c[PixelPlay] Setup incompleto. Selecciona ambos bloques primero.",
+  "message.pixelplay.screen_preset_created": "§a[PixelPlay] §aPreset '%s' creado correctamente!"
 }
