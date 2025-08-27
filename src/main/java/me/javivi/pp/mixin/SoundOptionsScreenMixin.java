@@ -19,14 +19,19 @@ public abstract class SoundOptionsScreenMixin {
     )
     private void pixelplay$injectMultimediaSlider(CallbackInfoReturnable<SimpleOption<?>[]> cir) {
         SimpleOption<?>[] orig = cir.getReturnValue();
+        
+        // Obtener el valor actual del volumen multimedia
+        float currentVolume = MultimediaVolume.getMasterMultiplier();
+        
         SimpleOption<Double> multimediaOption = new SimpleOption<>(
                 "options.pixelplay.multimedia_volume",
                 SimpleOption.emptyTooltip(),
                 (ignoredName, value) -> Text.translatable("options.pixelplay.multimedia_volume.value", Math.round(value * 100.0)),
                 SimpleOption.DoubleSliderCallbacks.INSTANCE,
-                1.0,
+                (double) currentVolume, // Inicializar con el valor guardado
                 value -> MultimediaVolume.setMasterMultiplier(value.floatValue())
         );
+        
         SimpleOption<?>[] merged = new SimpleOption[orig.length + 1];
         System.arraycopy(orig, 0, merged, 0, orig.length);
         merged[orig.length] = multimediaOption; 

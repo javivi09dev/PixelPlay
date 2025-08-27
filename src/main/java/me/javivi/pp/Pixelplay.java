@@ -17,5 +17,8 @@ public class Pixelplay implements ModInitializer {
         me.javivi.pp.screen.ScreenPreset.loadPresets();
         
         me.javivi.pp.screen.ScreenInteractionHandler.init();
+        
+        // Initialize multimedia volume system
+        me.javivi.pp.sound.MultimediaVolume.init();
     }
 }
