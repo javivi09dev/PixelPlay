@@ -5,16 +5,23 @@ import me.javivi.pp.client.playback.PlaybackManager;
 import me.javivi.pp.play.VideoSession;
 import me.javivi.pp.play.AudioSession;
 import me.javivi.pp.util.Easing;
+import me.javivi.pp.network.payload.*;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
+
+import java.util.List;
+import java.util.UUID;
 
 /**
  * PixelPlay API 
  * 
+ * This API provides methods to control video and audio playback
+ * from other mods. All methods are thread-safe and can be called from
+ * any thread.
  * 
- * You can use it for you own mods, but it's supposed to work for Kindly Klan's events.
+ * You can use it for your own mods, but it's supposed to work for Kindly Klan's events.
  * 
- * 
- * 
+ * @since 1.3
  */
 public final class PixelPlayAPI {
     
@@ -55,6 +62,43 @@ public final class PixelPlayAPI {
     }
     
     /**
+     * Starts a video with fade-in and fade-out effects for specific players
+     * 
+     * @param targetPlayers List of player UUIDs (null or empty for local player)
+     * @param url Video URL (YouTube, direct MP4, etc.)
+     * @param freezeScreen Whether to freeze player input during playback
+     * @param easeColor Color of the fade effect (WHITE or BLACK)
+     * @param introSeconds Duration of fade-in effect in seconds
+     * @param outroSeconds Duration of fade-out effect in seconds
+     * @return true if video started successfully, false otherwise
+     */
+    public static boolean startVideoWithEase(List<UUID> targetPlayers, String url, boolean freezeScreen, 
+                                           VideoSession.EaseColor easeColor, 
+                                           double introSeconds, double outroSeconds) {
+        if (targetPlayers == null || targetPlayers.isEmpty()) {
+            // Local player
+            return startVideoWithEase(url, freezeScreen, easeColor, introSeconds, outroSeconds);
+        }
+        
+        try {
+            // Send to multiple players
+            for (UUID playerId : targetPlayers) {
+                ClientPlayNetworking.send(new StartVideoC2SPayload(
+                    playerId,
+                    url,
+                    freezeScreen,
+                    easeColor == VideoSession.EaseColor.WHITE,
+                    introSeconds,
+                    outroSeconds
+                ));
+            }
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
+    /**
      * Starts a simple video without effects
      * 
      * @param url Video URL
@@ -63,6 +107,18 @@ public final class PixelPlayAPI {
      */
     public static boolean startVideo(String url, boolean freezeScreen) {
         return startVideoWithEase(url, freezeScreen, VideoSession.EaseColor.BLACK, 0, 0);
+    }
+    
+    /**
+     * Starts a simple video without effects for specific players
+     * 
+     * @param targetPlayers List of player UUIDs (null or empty for local player)
+     * @param url Video URL
+     * @param freezeScreen Whether to freeze player input
+     * @return true if video started successfully, false otherwise
+     */
+    public static boolean startVideo(List<UUID> targetPlayers, String url, boolean freezeScreen) {
+        return startVideoWithEase(targetPlayers, url, freezeScreen, VideoSession.EaseColor.BLACK, 0, 0);
     }
     
     /**
@@ -75,6 +131,29 @@ public final class PixelPlayAPI {
             MinecraftClient.getInstance().execute(() -> {
                 PlaybackManager.stopVideo();
             });
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
+    /**
+     * Stops video for specific players
+     * 
+     * @param targetPlayers List of player UUIDs (null or empty for local player)
+     * @return true if stop command sent successfully, false otherwise
+     */
+    public static boolean stopVideo(List<UUID> targetPlayers) {
+        if (targetPlayers == null || targetPlayers.isEmpty()) {
+            // Local player
+            return stopVideo();
+        }
+        
+        try {
+            // Send to multiple players
+            for (UUID playerId : targetPlayers) {
+                ClientPlayNetworking.send(new StopVideoC2SPayload(playerId));
+            }
             return true;
         } catch (Exception e) {
             return false;
@@ -113,6 +192,32 @@ public final class PixelPlayAPI {
     }
     
     /**
+     * Starts audio playback with fade effects for specific players
+     * 
+     * @param targetPlayers List of player UUIDs (null or empty for local player)
+     * @param url Audio URL
+     * @param introSeconds Fade-in duration in seconds
+     * @param outroSeconds Fade-out duration in seconds
+     * @return true if audio started successfully, false otherwise
+     */
+    public static boolean startAudioWithEase(List<UUID> targetPlayers, String url, double introSeconds, double outroSeconds) {
+        if (targetPlayers == null || targetPlayers.isEmpty()) {
+            // Local player
+            return startAudioWithEase(url, introSeconds, outroSeconds);
+        }
+        
+        try {
+            // Send to multiple players
+            for (UUID playerId : targetPlayers) {
+                ClientPlayNetworking.send(new StartAudioC2SPayload(playerId, url, introSeconds, outroSeconds));
+            }
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
+    /**
      * Starts simple audio playback
      * 
      * @param url Audio URL
@@ -120,6 +225,17 @@ public final class PixelPlayAPI {
      */
     public static boolean startAudio(String url) {
         return startAudioWithEase(url, 0, 0);
+    }
+    
+    /**
+     * Starts simple audio playback for specific players
+     * 
+     * @param targetPlayers List of player UUIDs (null or empty for local player)
+     * @param url Audio URL
+     * @return true if audio started successfully, false otherwise
+     */
+    public static boolean startAudio(List<UUID> targetPlayers, String url) {
+        return startAudioWithEase(targetPlayers, url, 0, 0);
     }
     
     /**
@@ -132,6 +248,29 @@ public final class PixelPlayAPI {
             MinecraftClient.getInstance().execute(() -> {
                 PlaybackManager.stopAudio();
             });
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
+    /**
+     * Stops audio for specific players
+     * 
+     * @param targetPlayers List of player UUIDs (null or empty for local player)
+     * @return true if stop command sent successfully, false otherwise
+     */
+    public static boolean stopAudio(List<UUID> targetPlayers) {
+        if (targetPlayers == null || targetPlayers.isEmpty()) {
+            // Local player
+            return stopAudio();
+        }
+        
+        try {
+            // Send to multiple players
+            for (UUID playerId : targetPlayers) {
+                ClientPlayNetworking.send(new StopAudioC2SPayload(playerId));
+            }
             return true;
         } catch (Exception e) {
             return false;
@@ -174,7 +313,36 @@ public final class PixelPlayAPI {
         }
     }
     
-    // ===== UTILITY METHODS :) =====
+    /**
+     * Starts a fade effect for specific players
+     * 
+     * @param targetPlayers List of player UUIDs (null or empty for local player)
+     * @param easeColor Color of the fade (WHITE or BLACK)
+     * @param introSeconds Fade-in duration
+     * @param totalSeconds Total effect duration
+     * @param outroSeconds Fade-out duration
+     * @return true if effect started successfully, false otherwise
+     */
+    public static boolean startEase(List<UUID> targetPlayers, VideoSession.EaseColor easeColor, 
+                                   double introSeconds, double totalSeconds, double outroSeconds) {
+        if (targetPlayers == null || targetPlayers.isEmpty()) {
+            // Local player
+            return startEase(easeColor, introSeconds, totalSeconds, outroSeconds);
+        }
+        
+        try {
+            // Send to multiple players
+            for (UUID playerId : targetPlayers) {
+                boolean isWhite = easeColor == VideoSession.EaseColor.WHITE;
+                ClientPlayNetworking.send(new StartEaseC2SPayload(playerId, isWhite, introSeconds, totalSeconds, outroSeconds));
+            }
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
+    // ===== UTILITY METHODS =====
     
     /**
      * Gets the current volume multiplier for multimedia
