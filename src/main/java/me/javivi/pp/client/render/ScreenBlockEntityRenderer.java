@@ -59,10 +59,12 @@ public final class ScreenBlockEntityRenderer implements BlockEntityRenderer<Scre
         matrices.translate(0.0, 0.0, -0.501);
         
         RenderSystem.setShader(GameRenderer::getPositionTexProgram);
+        RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         RenderSystem.enableDepthTest();
         RenderSystem.depthFunc(GL11.GL_LEQUAL);
+        RenderSystem.disableCull();
         
         var pos = be.getPos();
         Identifier textureIdentifier = Identifier.of("pixelplay", "screen_" + pos.getX() + "_" + pos.getY() + "_" + pos.getZ());
@@ -112,10 +114,11 @@ public final class ScreenBlockEntityRenderer implements BlockEntityRenderer<Scre
         float x1 = quadWidth / 2f;
         float y1 = quadHeight / 2f;
         
-                            buf.vertex(matrix, x0, y1, 0).texture(1, 0);
-                    buf.vertex(matrix, x1, y1, 0).texture(0, 0);
-                    buf.vertex(matrix, x1, y0, 0).texture(0, 1);
-                    buf.vertex(matrix, x0, y0, 0).texture(1, 1);
+        // Fixed texture coordinates - inverted horizontally to fix rotation
+        buf.vertex(matrix, x0, y1, 0).texture(1, 0);  // Top-left vertex, top-right texture
+        buf.vertex(matrix, x1, y1, 0).texture(0, 0);  // Top-right vertex, top-left texture
+        buf.vertex(matrix, x1, y0, 0).texture(0, 1);  // Bottom-right vertex, bottom-left texture
+        buf.vertex(matrix, x0, y0, 0).texture(1, 1);  // Bottom-left vertex, bottom-right texture
         
         BufferRenderer.drawWithGlobalProgram(buf.end());
         

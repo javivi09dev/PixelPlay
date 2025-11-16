@@ -5,11 +5,13 @@ import me.javivi.pp.client.playback.PlaybackManager;
 import me.javivi.pp.play.EaseSession;
 import me.javivi.pp.play.VideoSession;
 import me.javivi.pp.play.AudioSession;
+import me.javivi.pp.play.ImageSession;
 import me.javivi.pp.network.payload.StartVideoPayload;
 import me.javivi.pp.network.payload.StartEasePayload;
 import me.javivi.pp.network.payload.StopVideoPayload;
 import me.javivi.pp.network.payload.StartAudioPayload;
 import me.javivi.pp.network.payload.StopAudioPayload;
+import me.javivi.pp.network.payload.StartImagePayload;
 import me.javivi.pp.util.Easing;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
@@ -59,6 +61,17 @@ public final class PixelPlayClientNetwork {
                     if (!session.hasError()) {
                         PlaybackManager.setAudioSession(session);
                     }
+                });
+            }
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(StartImagePayload.ID, (payload, context) -> {
+            if (payload instanceof StartImagePayload p) {
+                var mc = MinecraftClient.getInstance();
+                mc.execute(() -> {
+                    var color = p.white() ? ImageSession.EaseColor.WHITE : ImageSession.EaseColor.BLACK;
+                    var session = new ImageSession(mc, p.url(), p.freeze(), color, p.intro(), p.outro(), p.duration(), Easing.Curve.EASE_IN_OUT_SINE);
+                    PixelplayClient.setImageSession(session);
                 });
             }
         });

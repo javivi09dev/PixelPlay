@@ -17,10 +17,14 @@ public class ScreenBlockEntity extends BlockEntity {
     private boolean loop = false;
     
     private transient @Nullable CustomVideoPlayer player = null;
+    private transient @Nullable CustomVideoPlayer nextPlayer = null; // Pre-loaded next player for seamless loop
     private transient int textureId = 0;
     private transient int videoWidth = 1;
     private transient int videoHeight = 1;
     private transient long lastLoopRestartMs = 0L;
+    private transient long lastVideoTimeMs = -1L;
+    private transient long lastVideoTimeWallMs = 0L;
+    private transient boolean preparingNext = false;
     
     private @Nullable BlockPos screenMin = null;
     private @Nullable BlockPos screenMax = null;
@@ -114,15 +118,64 @@ public class ScreenBlockEntity extends BlockEntity {
         }
     }
     
+    private void prepareNextPlayer() {
+        if (videoUrl == null || world == null || !world.isClient || preparingNext) return;
+        
+        try {
+            preparingNext = true;
+            var mc = MinecraftClient.getInstance();
+            this.nextPlayer = new CustomVideoPlayer(r -> mc.execute(r));
+            
+            // Intentar con la URL original
+            try {
+                this.nextPlayer.start(new URI(videoUrl));
+                return; // Si funciona, salir
+            } catch (Throwable ignored) {}
+            
+            // Si falla, intentar con URL alternativa (sin parámetros extra)
+            String cleanUrl = videoUrl.split("\\?")[0];
+            if (!cleanUrl.equals(videoUrl)) {
+                try {
+                    this.nextPlayer.start(new URI(cleanUrl));
+                    return;
+                } catch (Throwable ignored) {}
+            }
+            
+            // Si todo falla, limpiar
+            if (nextPlayer != null) {
+                try { nextPlayer.stop(); } catch (Throwable ignored) {}
+                try { nextPlayer.release(); } catch (Throwable ignored) {}
+                nextPlayer = null;
+            }
+            preparingNext = false;
+            
+        } catch (Throwable t) {
+            if (nextPlayer != null) {
+                try { nextPlayer.stop(); } catch (Throwable ignored) {}
+                try { nextPlayer.release(); } catch (Throwable ignored) {}
+                nextPlayer = null;
+            }
+            preparingNext = false;
+        }
+    }
+    
     public void stopPlayer() {
         if (player != null) {
             try { player.stop(); } catch (Throwable ignored) {}
             try { player.release(); } catch (Throwable ignored) {}
             player = null;
         }
+        if (nextPlayer != null) {
+            try { nextPlayer.stop(); } catch (Throwable ignored) {}
+            try { nextPlayer.release(); } catch (Throwable ignored) {}
+            nextPlayer = null;
+        }
         textureId = 0;
         videoWidth = 1;
         videoHeight = 1;
+        lastVideoTimeMs = -1L;
+        lastVideoTimeWallMs = 0L;
+        preparingNext = false;
     }
     
     public void clientTick() {
@@ -132,35 +185,117 @@ public class ScreenBlockEntity extends BlockEntity {
             long now = System.currentTimeMillis();
             
             try {
+                // Check if video has ended
+                boolean ended = player.isEnded();
+                
+                // Get current time and duration
                 long duration = player.getDuration();
                 long time = player.getTime();
+                boolean isPlaying = player.isPlaying();
                 
+                // Update time tracking
+                if (time != lastVideoTimeMs && time > 0) {
+                    lastVideoTimeMs = time;
+                    lastVideoTimeWallMs = now;
+                }
+                
+                // Check if we should prepare next player (when near end, ~300ms before)
+                if (duration > 0 && time > 0) {
+                    long timeLeft = duration - time;
+                    // Start preparing next player when we're 300ms from the end
+                    if (timeLeft <= 300 && timeLeft > 100 && nextPlayer == null && !preparingNext) {
+                        // Prepare next player in background
+                        MinecraftClient.getInstance().execute(() -> {
+                            prepareNextPlayer();
+                        });
+                    }
+                }
+                
+                // Check if we should restart
                 boolean shouldRestart = false;
                 
-                if (duration > 0) {
-                    shouldRestart = time >= duration - 100;
-                } else {
-                    shouldRestart = player.isEnded() || 
-                                  (textureId <= 0 && now - lastLoopRestartMs > 3000);
-                }
-                
-                if (!shouldRestart && textureId <= 0 && now - lastLoopRestartMs > 5000) {
+                // Method 1: Video explicitly ended
+                if (ended) {
                     shouldRestart = true;
                 }
-                
-                if (shouldRestart && (now - lastLoopRestartMs) >= 2000) {
-                    lastLoopRestartMs = now;
-                    
-                    stopPlayer();
-                    try { Thread.sleep(200); } catch (InterruptedException ignored) {}
-                    startPlayer();
+                // Method 2: We're at or past the end (within 50ms tolerance) OR next player is ready
+                else if (duration > 0 && time > 0) {
+                    long timeLeft = duration - time;
+                    // Restart if we're very close to the end OR if next player is ready
+                    if (timeLeft <= 50 || (nextPlayer != null && timeLeft <= 200)) {
+                        shouldRestart = true;
+                    }
+                }
+                // Method 3: Video stalled (not playing and time hasn't advanced in 2+ seconds)
+                else if (lastVideoTimeMs > 0 && !isPlaying) {
+                    long timeSinceLastUpdate = now - lastVideoTimeWallMs;
+                    if (timeSinceLastUpdate > 2000) {
+                        shouldRestart = true;
+                    }
+                }
+                // Method 4: No duration info but video stopped playing and hasn't updated
+                else if (duration <= 0 && !isPlaying && lastVideoTimeMs > 0) {
+                    long timeSinceLastUpdate = now - lastVideoTimeWallMs;
+                    if (timeSinceLastUpdate > 3000) {
+                        shouldRestart = true;
+                    }
                 }
                 
-            } catch (Throwable ignored) {       
-                if (now - lastLoopRestartMs >= 30000) {
+                // Restart if needed (with minimal cooldown for seamless transition)
+                if (shouldRestart && (now - lastLoopRestartMs) >= 100) {
                     lastLoopRestartMs = now;
+                    
+                    // If we have a pre-loaded next player, use it immediately
+                    if (nextPlayer != null) {
+                        // Swap players instantly for seamless transition
+                        CustomVideoPlayer oldPlayer = player;
+                        player = nextPlayer;
+                        nextPlayer = null;
+                        preparingNext = false;
+                        
+                        // Clean up old player
+                        if (oldPlayer != null) {
+                            try { oldPlayer.stop(); } catch (Throwable ignored) {}
+                            try { oldPlayer.release(); } catch (Throwable ignored) {}
+                        }
+                        
+                        // Reset tracking
+                        lastVideoTimeMs = -1L;
+                        lastVideoTimeWallMs = 0L;
+                    } else {
+                        // No pre-loaded player, do normal restart (should be rare)
+                        lastVideoTimeMs = -1L;
+                        lastVideoTimeWallMs = 0L;
+                        
+                        // Stop player first
+                        if (player != null) {
+                            try { player.stop(); } catch (Throwable ignored) {}
+                            try { player.release(); } catch (Throwable ignored) {}
+                            player = null;
+                        }
+                        textureId = 0;
+                        
+                        // Start new player immediately
+                        MinecraftClient.getInstance().execute(() -> {
+                            if (videoUrl != null && loop && isMainScreen) {
+                                startPlayer();
+                            }
+                        });
+                    }
+                }
+                
+            } catch (Throwable t) {
+                // If there's an error and it's been a while, try to restart
+                if ((now - lastLoopRestartMs) >= 5000) {
+                    lastLoopRestartMs = now;
+                    lastVideoTimeMs = -1L;
+                    lastVideoTimeWallMs = 0L;
                     stopPlayer();
-                    startPlayer();
+                    MinecraftClient.getInstance().execute(() -> {
+                        if (videoUrl != null && loop && isMainScreen) {
+                            startPlayer();
+                        }
+                    });
                 }
             }
         }

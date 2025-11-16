@@ -9,6 +9,7 @@ import me.javivi.pp.network.payload.StartAudioPayload;
 import me.javivi.pp.network.payload.StartVideoPayload;
 import me.javivi.pp.network.payload.StopVideoPayload;
 import me.javivi.pp.network.payload.StopAudioPayload;
+import me.javivi.pp.network.payload.StartImagePayload;
 import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.server.command.CommandManager;
@@ -21,6 +22,7 @@ import java.util.Collection;
 import net.minecraft.client.MinecraftClient;
 import me.javivi.pp.client.PixelplayClient;
 import me.javivi.pp.play.VideoSession;
+import me.javivi.pp.play.ImageSession;
 import me.javivi.pp.util.Easing;
 
 public final class PixelPlayCommand {
@@ -211,6 +213,93 @@ public final class PixelPlayCommand {
                                         ctx.getSource().sendFeedback(() -> Text.translatable("message.pixelplay.ease_applied"), false);
                                         return 1;
                                     })
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+            
+            .then(CommandManager.literal("startimage")
+                .then(CommandManager.argument("targets", EntityArgumentType.entities())
+                    .then(CommandManager.argument("freeze_screen", BoolArgumentType.bool())
+                        .then(CommandManager.argument("duration", DoubleArgumentType.doubleArg(0, 3600))
+                            .then(CommandManager.argument("url", StringArgumentType.greedyString())
+                                .suggests((ctx, b) -> { 
+                                    b.suggest("https://"); 
+                                    return b.buildFuture(); 
+                                })
+                                .executes(ctx -> {
+                                    boolean freeze = BoolArgumentType.getBool(ctx, "freeze_screen");
+                                    double duration = clamp(DoubleArgumentType.getDouble(ctx, "duration"), 0, 3600);
+                                    String url = cleanUrl(StringArgumentType.getString(ctx, "url"));
+                                    if (!isValidUrl(url)) { ctx.getSource().sendError(Text.translatable("message.pixelplay.invalid_url")); return 0; }
+                                    
+                                    if (ctx.getSource().getServer().isSingleplayer()) {
+                                        MinecraftClient.getInstance().execute(() -> {
+                                            var easeColor = ImageSession.EaseColor.BLACK;
+                                            var session = new ImageSession(MinecraftClient.getInstance(), url, freeze, easeColor, 0, 0, duration, Easing.Curve.EASE_IN_OUT_SINE);
+                                            PixelplayClient.setImageSession(session);
+                                        });
+                                    } else {
+                                        Collection<ServerPlayerEntity> targets = EntityArgumentType.getPlayers(ctx, "targets");
+                                        StartImagePayload payload = new StartImagePayload(url, freeze, false, 0, 0, duration);
+                                        for (ServerPlayerEntity p : targets) {
+                                            ServerPlayNetworking.send(p, payload);
+                                        }
+                                    }
+                                    ctx.getSource().sendFeedback(() -> Text.translatable("message.pixelplay.image_started"), false);
+                                    return 1;
+                                })
+                            )
+                        )
+                    )
+                )
+            )
+            
+            .then(CommandManager.literal("startimagewithease")
+                .then(CommandManager.argument("targets", EntityArgumentType.entities())
+                    .then(CommandManager.argument("easecolor", StringArgumentType.word())
+                        .suggests((ctx, b) -> { 
+                            b.suggest("white"); 
+                            b.suggest("black"); 
+                            b.suggest("whiteease"); 
+                            b.suggest("blackease"); 
+                            return b.buildFuture(); 
+                        })
+                        .then(CommandManager.argument("introsecondsofease", DoubleArgumentType.doubleArg(0, 600))
+                            .then(CommandManager.argument("outrosecondsofease", DoubleArgumentType.doubleArg(0, 600))
+                                .then(CommandManager.argument("freeze_screen", BoolArgumentType.bool())
+                                    .then(CommandManager.argument("duration", DoubleArgumentType.doubleArg(0, 3600))
+                                        .then(CommandManager.argument("url", StringArgumentType.greedyString())
+                                            .suggests((ctx, b) -> { b.suggest("https://"); return b.buildFuture(); })
+                                            .executes(ctx -> {
+                                                String color = StringArgumentType.getString(ctx, "easecolor");
+                                                double intro = clamp(DoubleArgumentType.getDouble(ctx, "introsecondsofease"), 0, 600);
+                                                double outro = clamp(DoubleArgumentType.getDouble(ctx, "outrosecondsofease"), 0, 600);
+                                                boolean freeze = BoolArgumentType.getBool(ctx, "freeze_screen");
+                                                double duration = clamp(DoubleArgumentType.getDouble(ctx, "duration"), 0, 3600);
+                                                String url = cleanUrl(StringArgumentType.getString(ctx, "url"));
+                                                if (!isValidUrl(url)) { ctx.getSource().sendError(Text.translatable("message.pixelplay.invalid_url")); return 0; }
+                                                boolean white = color.equalsIgnoreCase("white") || color.equalsIgnoreCase("whiteease");
+                                                if (ctx.getSource().getServer().isSingleplayer()) {
+                                                    MinecraftClient.getInstance().execute(() -> {
+                                                        var easeColor = white ? ImageSession.EaseColor.WHITE : ImageSession.EaseColor.BLACK;
+                                                        var session = new ImageSession(MinecraftClient.getInstance(), url, freeze, easeColor, intro, outro, duration, Easing.Curve.EASE_IN_OUT_SINE);
+                                                        PixelplayClient.setImageSession(session);
+                                                    });
+                                                } else {
+                                                    Collection<ServerPlayerEntity> targets = EntityArgumentType.getPlayers(ctx, "targets");
+                                                    StartImagePayload payload = new StartImagePayload(url, freeze, white, intro, outro, duration);
+                                                    for (ServerPlayerEntity p : targets) {
+                                                        ServerPlayNetworking.send(p, payload);
+                                                    }
+                                                }
+                                                ctx.getSource().sendFeedback(() -> Text.translatable("message.pixelplay.image_with_ease"), false);
+                                                return 1;
+                                            })
+                                        )
+                                    )
                                 )
                             )
                         )

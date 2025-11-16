@@ -4,6 +4,7 @@ import me.javivi.pp.client.PixelplayClient;
 import me.javivi.pp.client.playback.PlaybackManager;
 import me.javivi.pp.play.VideoSession;
 import me.javivi.pp.play.AudioSession;
+import me.javivi.pp.play.ImageSession;
 import me.javivi.pp.util.Easing;
 import me.javivi.pp.network.payload.*;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -361,6 +362,152 @@ public final class PixelPlayAPI {
     public static void setVolumeMultiplier(float multiplier) {
         me.javivi.pp.sound.MultimediaVolume.setMasterMultiplier(multiplier);
     }
+    
+    // ===== IMAGE PLAYBACK =====
+    
+    /**
+     * Starts displaying an image with fade-in and fade-out effects
+     * 
+     * @param url Image URL (supports images and GIFs)
+     * @param freezeScreen Whether to freeze player input during display
+     * @param easeColor Color of the fade effect (WHITE or BLACK)
+     * @param introSeconds Duration of fade-in effect in seconds
+     * @param outroSeconds Duration of fade-out effect in seconds
+     * @param displayDurationSeconds Duration to display the image in seconds (0 for infinite)
+     * @return true if image started successfully, false otherwise
+     */
+    public static boolean startImageWithEase(String url, boolean freezeScreen, 
+                                           ImageSession.EaseColor easeColor, 
+                                           double introSeconds, double outroSeconds,
+                                           double displayDurationSeconds) {
+        try {
+            MinecraftClient.getInstance().execute(() -> {
+                ImageSession session = new ImageSession(
+                    MinecraftClient.getInstance(), 
+                    url, 
+                    freezeScreen, 
+                    easeColor, 
+                    introSeconds, 
+                    outroSeconds,
+                    displayDurationSeconds,
+                    Easing.Curve.EASE_IN_OUT_SINE
+                );
+                PixelplayClient.setImageSession(session);
+            });
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
+    /**
+     * Starts displaying an image with fade-in and fade-out effects for specific players
+     * 
+     * @param targetPlayers List of player UUIDs (null or empty for local player)
+     * @param url Image URL (supports images and GIFs)
+     * @param freezeScreen Whether to freeze player input during display
+     * @param easeColor Color of the fade effect (WHITE or BLACK)
+     * @param introSeconds Duration of fade-in effect in seconds
+     * @param outroSeconds Duration of fade-out effect in seconds
+     * @param displayDurationSeconds Duration to display the image in seconds (0 for infinite)
+     * @return true if image started successfully, false otherwise
+     */
+    public static boolean startImageWithEase(List<UUID> targetPlayers, String url, boolean freezeScreen, 
+                                           ImageSession.EaseColor easeColor, 
+                                           double introSeconds, double outroSeconds,
+                                           double displayDurationSeconds) {
+        if (targetPlayers == null || targetPlayers.isEmpty()) {
+            // Local player
+            return startImageWithEase(url, freezeScreen, easeColor, introSeconds, outroSeconds, displayDurationSeconds);
+        }
+        
+        try {
+            // Send to multiple players
+            for (UUID playerId : targetPlayers) {
+                ClientPlayNetworking.send(new StartImageC2SPayload(
+                    playerId,
+                    url,
+                    freezeScreen,
+                    easeColor == ImageSession.EaseColor.WHITE,
+                    introSeconds,
+                    outroSeconds,
+                    displayDurationSeconds
+                ));
+            }
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
+    /**
+     * Starts displaying an image without effects
+     * 
+     * @param url Image URL
+     * @param freezeScreen Whether to freeze player input
+     * @param displayDurationSeconds Duration to display the image in seconds (0 for infinite)
+     * @return true if image started successfully, false otherwise
+     */
+    public static boolean startImage(String url, boolean freezeScreen, double displayDurationSeconds) {
+        return startImageWithEase(url, freezeScreen, ImageSession.EaseColor.BLACK, 0, 0, displayDurationSeconds);
+    }
+    
+    /**
+     * Starts displaying an image without effects for specific players
+     * 
+     * @param targetPlayers List of player UUIDs (null or empty for local player)
+     * @param url Image URL
+     * @param freezeScreen Whether to freeze player input
+     * @param displayDurationSeconds Duration to display the image in seconds (0 for infinite)
+     * @return true if image started successfully, false otherwise
+     */
+    public static boolean startImage(List<UUID> targetPlayers, String url, boolean freezeScreen, double displayDurationSeconds) {
+        return startImageWithEase(targetPlayers, url, freezeScreen, ImageSession.EaseColor.BLACK, 0, 0, displayDurationSeconds);
+    }
+    
+    /**
+     * Stops the currently displaying image
+     * 
+     * @return true if image was stopped, false if no image was displaying
+     */
+    public static boolean stopImage() {
+        try {
+            MinecraftClient.getInstance().execute(() -> {
+                PlaybackManager.stopImage();
+            });
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
+    /**
+     * Stops image for specific players
+     * 
+     * @param targetPlayers List of player UUIDs (null or empty for local player)
+     * @return true if stop command sent successfully, false otherwise
+     */
+    public static boolean stopImage(List<UUID> targetPlayers) {
+        if (targetPlayers == null || targetPlayers.isEmpty()) {
+            // Local player
+            return stopImage();
+        }
+        
+        // Note: StopImageC2SPayload would need to be created if needed
+        // For now, we'll just return false for remote players
+        return false;
+    }
+    
+    /**
+     * Checks if an image is currently displaying
+     * 
+     * @return true if image is active, false otherwise
+     */
+    public static boolean isImageDisplaying() {
+        return PlaybackManager.getImageSession() != null;
+    }
+    
+    // ===== UTILITY METHODS =====
     
     /**
      * Checks if PixelPlay is available and ready

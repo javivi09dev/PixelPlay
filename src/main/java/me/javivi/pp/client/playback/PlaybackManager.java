@@ -2,6 +2,7 @@ package me.javivi.pp.client.playback;
 
 import me.javivi.pp.play.AudioSession;
 import me.javivi.pp.play.VideoSession;
+import me.javivi.pp.play.ImageSession;
 import net.minecraft.client.MinecraftClient;
 import org.jetbrains.annotations.Nullable;
 import me.javivi.pp.client.PixelplayClient;
@@ -10,6 +11,7 @@ import me.javivi.pp.client.gui.FreezeScreen;
 public final class PlaybackManager {
     private static volatile @Nullable VideoSession videoSession;
     private static volatile @Nullable AudioSession audioSession;
+    private static volatile @Nullable ImageSession imageSession;
     // Seguimiento de progreso para detectar fin cuando VLC no reporta duración/ended
     private static long lastVideoTimeMs = -1L;
     private static long lastVideoTimeWallMs = 0L;
@@ -23,6 +25,33 @@ public final class PlaybackManager {
     public static @Nullable VideoSession getVideoSession() { return videoSession; }
 
     public static @Nullable AudioSession getAudioSession() { return audioSession; }
+
+    public static void setImageSession(@Nullable ImageSession session) {
+        imageSession = session;
+    }
+
+    public static @Nullable ImageSession getImageSession() { return imageSession; }
+
+    public static void stopImage() {
+        try {
+            if (imageSession != null) imageSession.stop();
+        } catch (Throwable ignored) {}
+        imageSession = null;
+        try {
+            var mcNow = MinecraftClient.getInstance();
+            mcNow.execute(() -> {
+                PixelplayClient.setImageSession(null);
+                var overlay = PixelplayClient.getOverlay();
+                if (overlay != null) {
+                    overlay.setImageSession(null);
+                    overlay.setEase(null);
+                }
+                if (mcNow.currentScreen instanceof FreezeScreen) {
+                    mcNow.setScreen(null);
+                }
+            });
+        } catch (Throwable ignored) {}
+    }
 
     public static void stopVideo() {
         try {
@@ -114,6 +143,26 @@ public final class PlaybackManager {
                     if (!vp.isPlaying() && vp.isPaused() && vp.dimension() != null && vp.dimension().width > 1 && vp.dimension().height > 1) {
                         vp.play();
                     }
+                }
+            } catch (Throwable ignored) {}
+        }
+        if (imageSession != null) {
+            try {
+                imageSession.maybeStartOutro();
+                if (imageSession.shouldStop() || imageSession.isStopped() || imageSession.hasError()) {
+                    try { imageSession.stop(); } catch (Throwable ignored) {}
+                    imageSession = null;
+                    try {
+                        var mcNow = MinecraftClient.getInstance();
+                        mcNow.execute(() -> {
+                            PixelplayClient.setImageSession(null);
+                            var overlay = PixelplayClient.getOverlay();
+                            if (overlay != null) {
+                                overlay.setImageSession(null);
+                                overlay.setEase(null);
+                            }
+                        });
+                    } catch (Throwable ignored) {}
                 }
             } catch (Throwable ignored) {}
         }
