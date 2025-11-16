@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import me.javivi.pp.command.PixelPlayCommand;
 import me.javivi.pp.network.PixelPlayNetwork;
 import me.javivi.pp.network.PixelPlayServerNetwork;
+import me.javivi.pp.server.PlayerJoinHandler;
 
 public class Pixelplay implements ModInitializer {
 
@@ -22,5 +23,8 @@ public class Pixelplay implements ModInitializer {
         
         // Initialize multimedia volume system
         me.javivi.pp.sound.MultimediaVolume.init();
+        
+        // Register player join handler to sync screen states
+        PlayerJoinHandler.init();
     }
 }

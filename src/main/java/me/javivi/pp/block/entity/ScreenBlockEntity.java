@@ -2,12 +2,15 @@ package me.javivi.pp.block.entity;
 
 import me.javivi.pp.registry.ModBlockEntities;
 import me.javivi.pp.wm.CustomVideoPlayer;
+import me.javivi.pp.network.payload.ScreenVideoPayload;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.RegistryWrapper;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import org.jetbrains.annotations.Nullable;
 
 import java.net.URI;
@@ -69,7 +72,21 @@ public class ScreenBlockEntity extends BlockEntity {
         this.loop = loop;
         markDirty();
         
-        if (isMainScreen) {
+        // Sync to all clients in multiplayer
+        if (world != null && !world.isClient && world instanceof ServerWorld serverWorld) {
+            ScreenVideoPayload payload = new ScreenVideoPayload(getPos(), url, loop, screenMin, screenMax);
+            // Send to all players in the world (they will filter by chunk loading)
+            serverWorld.getPlayers().forEach(player -> {
+                // Only send if player is within reasonable distance
+                double dist = player.getBlockPos().getSquaredDistance(getPos());
+                if (dist <= 128 * 128) { // 128 blocks = 8 chunks
+                    ServerPlayNetworking.send(player, payload);
+                }
+            });
+        }
+        
+        // Start player on client side
+        if (world != null && world.isClient && isMainScreen) {
             startPlayer();
         }
     }
@@ -79,6 +96,19 @@ public class ScreenBlockEntity extends BlockEntity {
         this.videoUrl = null;
         this.loop = false;
         markDirty();
+        
+        // Sync to all clients in multiplayer
+        if (world != null && !world.isClient && world instanceof ServerWorld serverWorld) {
+            ScreenVideoPayload payload = new ScreenVideoPayload(getPos(), null, false, screenMin, screenMax);
+            // Send to all players in the world (they will filter by chunk loading)
+            serverWorld.getPlayers().forEach(player -> {
+                // Only send if player is within reasonable distance
+                double dist = player.getBlockPos().getSquaredDistance(getPos());
+                if (dist <= 128 * 128) { // 128 blocks = 8 chunks
+                    ServerPlayNetworking.send(player, payload);
+                }
+            });
+        }
     }
     
     public @Nullable String getVideoUrl() { return videoUrl; }
@@ -351,6 +381,16 @@ public class ScreenBlockEntity extends BlockEntity {
             screenMin = new BlockPos(nbt.getInt("minX"), nbt.getInt("minY"), nbt.getInt("minZ"));
             screenMax = new BlockPos(nbt.getInt("maxX"), nbt.getInt("maxY"), nbt.getInt("maxZ"));
             isMainScreen = getPos().equals(screenMin);
+        }
+        
+        // Start player on client when loading from NBT (for reconnection)
+        if (world != null && world.isClient && isMainScreen && videoUrl != null && !videoUrl.isEmpty()) {
+            // Schedule start on next tick to ensure world is fully loaded
+            MinecraftClient.getInstance().execute(() -> {
+                if (this.videoUrl != null && !this.videoUrl.isEmpty() && this.isMainScreen) {
+                    startPlayer();
+                }
+            });
         }
     }
     

@@ -12,6 +12,7 @@ import me.javivi.pp.network.payload.StopVideoPayload;
 import me.javivi.pp.network.payload.StartAudioPayload;
 import me.javivi.pp.network.payload.StopAudioPayload;
 import me.javivi.pp.network.payload.StartImagePayload;
+import me.javivi.pp.network.payload.ScreenVideoPayload;
 import me.javivi.pp.util.Easing;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
@@ -72,6 +73,29 @@ public final class PixelPlayClientNetwork {
                     var color = p.white() ? ImageSession.EaseColor.WHITE : ImageSession.EaseColor.BLACK;
                     var session = new ImageSession(mc, p.url(), p.freeze(), color, p.intro(), p.outro(), p.duration(), Easing.Curve.EASE_IN_OUT_SINE);
                     PixelplayClient.setImageSession(session);
+                });
+            }
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(ScreenVideoPayload.ID, (payload, context) -> {
+            if (payload instanceof ScreenVideoPayload p) {
+                var mc = MinecraftClient.getInstance();
+                mc.execute(() -> {
+                    if (mc.world != null) {
+                        var be = mc.world.getBlockEntity(p.pos());
+                        if (be instanceof me.javivi.pp.block.entity.ScreenBlockEntity screen) {
+                            // Update screen area if provided
+                            if (p.min() != null && p.max() != null) {
+                                screen.setScreenArea(p.min(), p.max());
+                            }
+                            // Update video
+                            if (p.url() != null && !p.url().isEmpty()) {
+                                screen.setVideo(p.url(), p.loop());
+                            } else {
+                                screen.stopVideo();
+                            }
+                        }
+                    }
                 });
             }
         });
