@@ -107,6 +107,38 @@ public final class PixelPlayServerNetwork {
                 });
             }
         });
+
+        // Handle ScreenVolumeC2SPayload - update screen and sync to all clients
+        ServerPlayNetworking.registerGlobalReceiver(ScreenVolumeC2SPayload.ID, (payload, context) -> {
+            if (payload instanceof ScreenVolumeC2SPayload p) {
+                context.server().execute(() -> {
+                    var player = context.player();
+                    if (player != null && player.getWorld() != null) {
+                        var be = player.getWorld().getBlockEntity(p.pos());
+                        if (be instanceof me.javivi.pp.block.entity.ScreenBlockEntity screen) {
+                            screen.setVolume(p.volume());
+                            // setVolume ya sincroniza a todos los clientes
+                        }
+                    }
+                });
+            }
+        });
+
+        // Handle ScreenPauseC2SPayload - update screen and sync to all clients
+        ServerPlayNetworking.registerGlobalReceiver(ScreenPauseC2SPayload.ID, (payload, context) -> {
+            if (payload instanceof ScreenPauseC2SPayload p) {
+                context.server().execute(() -> {
+                    var player = context.player();
+                    if (player != null && player.getWorld() != null) {
+                        var be = player.getWorld().getBlockEntity(p.pos());
+                        if (be instanceof me.javivi.pp.block.entity.ScreenBlockEntity screen) {
+                            screen.setPaused(p.paused());
+                            // setPaused ya sincroniza a todos los clientes
+                        }
+                    }
+                });
+            }
+        });
     }
 }
 

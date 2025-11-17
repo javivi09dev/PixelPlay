@@ -51,8 +51,9 @@ public class ScreenBlock extends BlockWithEntity {
     @Override
     public BlockState getPlacementState(ItemPlacementContext ctx) {
         // La pantalla se coloca mirando hacia donde está mirando el jugador
-        Direction facing = ctx.getHorizontalPlayerFacing();
-        return this.getDefaultState().with(FACING, facing);
+        // Siempre usar la dirección horizontal del jugador, independientemente del lado donde se coloca
+        Direction playerFacing = ctx.getHorizontalPlayerFacing();
+        return this.getDefaultState().with(FACING, playerFacing);
     }
 
     @Override

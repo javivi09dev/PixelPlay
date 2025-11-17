@@ -1,6 +1,9 @@
 package me.javivi.pp.client.gui;
 
 import me.javivi.pp.block.entity.ScreenBlockEntity;
+import me.javivi.pp.network.payload.ScreenVolumeC2SPayload;
+import me.javivi.pp.network.payload.ScreenPauseC2SPayload;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
@@ -60,13 +63,14 @@ public final class ScreenControlScreen extends Screen {
             button -> {
                 if (screenEntity != null) {
                     boolean newPaused = !screenEntity.isPaused();
-                    // Ejecutar en el hilo del servidor si estamos en servidor
+                    // Enviar payload al servidor para sincronizar
                     var server = MinecraftClient.getInstance().getServer();
                     if (server != null && !server.isSingleplayer()) {
-                        server.execute(() -> {
-                            screenEntity.setPaused(newPaused);
-                        });
+                        // Multiplayer: enviar payload C2S
+                        ScreenPauseC2SPayload payload = new ScreenPauseC2SPayload(screenPos, newPaused);
+                        ClientPlayNetworking.send(payload);
                     } else {
+                        // Singleplayer: aplicar directamente
                         screenEntity.setPaused(newPaused);
                     }
                     currentPaused = newPaused;
@@ -136,13 +140,14 @@ public final class ScreenControlScreen extends Screen {
         @Override
         protected void applyValue() {
             if (screenEntity != null) {
-                // Ejecutar en el hilo del servidor si estamos en servidor
+                // Enviar payload al servidor para sincronizar
                 var server = MinecraftClient.getInstance().getServer();
                 if (server != null && !server.isSingleplayer()) {
-                    server.execute(() -> {
-                        screenEntity.setVolume((float) this.value);
-                    });
+                    // Multiplayer: enviar payload C2S
+                    ScreenVolumeC2SPayload payload = new ScreenVolumeC2SPayload(screenPos, (float) this.value);
+                    ClientPlayNetworking.send(payload);
                 } else {
+                    // Singleplayer: aplicar directamente
                     screenEntity.setVolume((float) this.value);
                 }
             }

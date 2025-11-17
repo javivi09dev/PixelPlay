@@ -15,6 +15,7 @@ import me.javivi.pp.network.payload.StartImagePayload;
 import me.javivi.pp.network.payload.ScreenVideoPayload;
 import me.javivi.pp.network.payload.ScreenVolumePayload;
 import me.javivi.pp.network.payload.ScreenPausePayload;
+import me.javivi.pp.network.payload.OpenScreenControlPayload;
 import me.javivi.pp.util.Easing;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
@@ -124,6 +125,20 @@ public final class PixelPlayClientNetwork {
                         var be = mc.world.getBlockEntity(p.pos());
                         if (be instanceof me.javivi.pp.block.entity.ScreenBlockEntity screen) {
                             screen.setPausedFromServer(p.paused());
+                        }
+                    }
+                });
+            }
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(OpenScreenControlPayload.ID, (payload, context) -> {
+            if (payload instanceof OpenScreenControlPayload p) {
+                var mc = MinecraftClient.getInstance();
+                mc.execute(() -> {
+                    if (mc.world != null) {
+                        var be = mc.world.getBlockEntity(p.pos());
+                        if (be instanceof me.javivi.pp.block.entity.ScreenBlockEntity) {
+                            mc.setScreen(new me.javivi.pp.client.gui.ScreenControlScreen(p.pos()));
                         }
                     }
                 });
