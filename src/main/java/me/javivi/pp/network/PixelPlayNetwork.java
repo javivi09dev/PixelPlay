@@ -15,6 +15,8 @@ public final class PixelPlayNetwork {
         PayloadTypeRegistry.playS2C().register(StartEasePayload.ID, StartEasePayload.CODEC);
         PayloadTypeRegistry.playS2C().register(StartImagePayload.ID, StartImagePayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ScreenVideoPayload.ID, ScreenVideoPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(ScreenVolumePayload.ID, ScreenVolumePayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(ScreenPausePayload.ID, ScreenPausePayload.CODEC);
         
         // C2S payloads (client to server)
         PayloadTypeRegistry.playC2S().register(StartVideoC2SPayload.ID, StartVideoC2SPayload.CODEC);

@@ -19,5 +19,9 @@
   "message.pixelplay.screen_second_block_selected": "§a[PixelPlay] §eSegundo bloque seleccionado en %d, %d, %d. Escribe: /pixelplay screen setup name <preset_name>",
   "message.pixelplay.screen_no_active_setup": "§c[PixelPlay] No hay setup activo. Usa /pixelplay screen setup para empezar.",
   "message.pixelplay.screen_setup_incomplete": "§c[PixelPlay] Setup incompleto. Selecciona ambos bloques primero.",
-  "message.pixelplay.screen_preset_created": "§a[PixelPlay] §aPreset '%s' creado correctamente!"
+  "message.pixelplay.screen_preset_created": "§a[PixelPlay] §aPreset '%s' creado correctamente!",
+  "gui.pixelplay.screen_control": "Control de Pantalla",
+  "gui.pixelplay.volume": "Volumen: %s%%",
+  "gui.pixelplay.pause": "Pausar",
+  "gui.pixelplay.resume": "Reanudar"
 }

@@ -3,6 +3,8 @@ package me.javivi.pp.block.entity;
 import me.javivi.pp.registry.ModBlockEntities;
 import me.javivi.pp.wm.CustomVideoPlayer;
 import me.javivi.pp.network.payload.ScreenVideoPayload;
+import me.javivi.pp.network.payload.ScreenVolumePayload;
+import me.javivi.pp.network.payload.ScreenPausePayload;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.client.MinecraftClient;
@@ -18,6 +20,8 @@ import java.net.URI;
 public class ScreenBlockEntity extends BlockEntity {
     private @Nullable String videoUrl = null;
     private boolean loop = false;
+    private float volume = 1.0f; // Volumen específico de la pantalla (0.0 a 1.0)
+    private boolean paused = false; // Estado de pausa
     
     private transient @Nullable CustomVideoPlayer player = null;
     private transient @Nullable CustomVideoPlayer nextPlayer = null; // Pre-loaded next player for seamless loop
@@ -72,7 +76,7 @@ public class ScreenBlockEntity extends BlockEntity {
         this.loop = loop;
         markDirty();
         
-        // Sync to all clients in multiplayer
+        // Sync to all clients in multiplayer (only from server side)
         if (world != null && !world.isClient && world instanceof ServerWorld serverWorld) {
             ScreenVideoPayload payload = new ScreenVideoPayload(getPos(), url, loop, screenMin, screenMax);
             // Send to all players in the world (they will filter by chunk loading)
@@ -86,6 +90,18 @@ public class ScreenBlockEntity extends BlockEntity {
         }
         
         // Start player on client side
+        if (world != null && world.isClient && isMainScreen) {
+            startPlayer();
+        }
+    }
+    
+    // Internal method to set video without syncing (used when receiving from server)
+    public void setVideoFromServer(String url, boolean loop) {
+        this.videoUrl = url;
+        this.loop = loop;
+        markDirty();
+        
+        // Start player on client side (no network sync needed, we're already on client)
         if (world != null && world.isClient && isMainScreen) {
             startPlayer();
         }
@@ -128,6 +144,11 @@ public class ScreenBlockEntity extends BlockEntity {
             // Intentar con la URL original
             try {
                 this.player.start(new URI(videoUrl));
+                // Aplicar volumen y pausa después de iniciar
+                applyVolume();
+                if (paused) {
+                    applyPause();
+                }
                 return; // Si funciona, salir
             } catch (Throwable ignored) {}
             
@@ -136,6 +157,11 @@ public class ScreenBlockEntity extends BlockEntity {
             if (!cleanUrl.equals(videoUrl)) {
                 try {
                     this.player.start(new URI(cleanUrl));
+                    // Aplicar volumen y pausa después de iniciar
+                    applyVolume();
+                    if (paused) {
+                        applyPause();
+                    }
                     return;
                 } catch (Throwable ignored) {}
             }
@@ -352,6 +378,95 @@ public class ScreenBlockEntity extends BlockEntity {
     
     public @Nullable CustomVideoPlayer clientPlayer() { return player; }
     
+    public float getVolume() { return volume; }
+    public boolean isPaused() { return paused; }
+    
+    public void setVolume(float newVolume) {
+        this.volume = Math.max(0f, Math.min(1f, newVolume));
+        markDirty();
+        
+        // Sync to all clients in multiplayer (only from server side)
+        if (world != null && !world.isClient && world instanceof ServerWorld serverWorld) {
+            ScreenVolumePayload payload = new ScreenVolumePayload(getPos(), volume);
+            serverWorld.getPlayers().forEach(player -> {
+                double dist = player.getBlockPos().getSquaredDistance(getPos());
+                if (dist <= 128 * 128) {
+                    ServerPlayNetworking.send(player, payload);
+                }
+            });
+        }
+        
+        // Apply volume on client side
+        if (world != null && world.isClient && isMainScreen && player != null) {
+            applyVolume();
+        }
+    }
+    
+    public void setPaused(boolean newPaused) {
+        this.paused = newPaused;
+        markDirty();
+        
+        // Sync to all clients in multiplayer (only from server side)
+        if (world != null && !world.isClient && world instanceof ServerWorld serverWorld) {
+            ScreenPausePayload payload = new ScreenPausePayload(getPos(), paused);
+            serverWorld.getPlayers().forEach(player -> {
+                double dist = player.getBlockPos().getSquaredDistance(getPos());
+                if (dist <= 128 * 128) {
+                    ServerPlayNetworking.send(player, payload);
+                }
+            });
+        }
+        
+        // Apply pause on client side
+        if (world != null && world.isClient && isMainScreen && player != null) {
+            applyPause();
+        }
+    }
+    
+    // Internal methods to set volume/pause without syncing (used when receiving from server)
+    public void setVolumeFromServer(float newVolume) {
+        this.volume = Math.max(0f, Math.min(1f, newVolume));
+        markDirty();
+        
+        // Apply volume on client side
+        if (world != null && world.isClient && isMainScreen && player != null) {
+            applyVolume();
+        }
+    }
+    
+    public void setPausedFromServer(boolean newPaused) {
+        this.paused = newPaused;
+        markDirty();
+        
+        // Apply pause on client side
+        if (world != null && world.isClient && isMainScreen && player != null) {
+            applyPause();
+        }
+    }
+    
+    private void applyVolume() {
+        if (player == null) return;
+        try {
+            // Aplicar volumen específico de la pantalla (independiente del volumen multimedia)
+            // El volumen multimedia se aplica en el renderer para la atenuación por distancia
+            player.setVolumeMultiplier(volume);
+        } catch (Throwable ignored) {}
+    }
+    
+    private void applyPause() {
+        if (player == null) return;
+        try {
+            if (paused) {
+                if (player.isPlaying() && player.raw() != null) {
+                    player.raw().mediaPlayer().controls().setPause(true);
+                }
+            } else {
+                if (player.isPaused() && player.raw() != null) {
+                    player.raw().mediaPlayer().controls().setPause(false);
+                }
+            }
+        } catch (Throwable ignored) {}
+    }
 
     @Override
     protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registryLookup) {
@@ -359,6 +474,8 @@ public class ScreenBlockEntity extends BlockEntity {
         
         if (videoUrl != null) nbt.putString("videoUrl", videoUrl);
         nbt.putBoolean("loop", loop);
+        nbt.putFloat("volume", volume); // Guardar volumen
+        nbt.putBoolean("paused", paused); // Guardar estado de pausa
         
         if (screenMin != null && screenMax != null) {
             nbt.putInt("minX", screenMin.getX());
@@ -376,6 +493,8 @@ public class ScreenBlockEntity extends BlockEntity {
         
         if (nbt.contains("videoUrl")) videoUrl = nbt.getString("videoUrl");
         loop = nbt.getBoolean("loop");
+        if (nbt.contains("volume")) volume = nbt.getFloat("volume");
+        if (nbt.contains("paused")) paused = nbt.getBoolean("paused");
         
         if (nbt.contains("minX")) {
             screenMin = new BlockPos(nbt.getInt("minX"), nbt.getInt("minY"), nbt.getInt("minZ"));
@@ -389,6 +508,9 @@ public class ScreenBlockEntity extends BlockEntity {
             MinecraftClient.getInstance().execute(() -> {
                 if (this.videoUrl != null && !this.videoUrl.isEmpty() && this.isMainScreen) {
                     startPlayer();
+                    // Apply saved volume and pause state
+                    applyVolume();
+                    applyPause();
                 }
             });
         }

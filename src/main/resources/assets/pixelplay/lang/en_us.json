@@ -19,5 +19,9 @@
   "message.pixelplay.screen_second_block_selected": "§a[PixelPlay] §eSecond block selected at %d, %d, %d. Type: /pixelplay screen setup name <preset_name>",
   "message.pixelplay.screen_no_active_setup": "§c[PixelPlay] No active setup. Use /pixelplay screen setup to start.",
   "message.pixelplay.screen_setup_incomplete": "§c[PixelPlay] Setup incomplete. Select both blocks first.",
-  "message.pixelplay.screen_preset_created": "§a[PixelPlay] §aPreset '%s' created successfully!"
+  "message.pixelplay.screen_preset_created": "§a[PixelPlay] §aPreset '%s' created successfully!",
+  "gui.pixelplay.screen_control": "Screen Control",
+  "gui.pixelplay.volume": "Volume: %s%%",
+  "gui.pixelplay.pause": "Pause",
+  "gui.pixelplay.resume": "Resume"
 }

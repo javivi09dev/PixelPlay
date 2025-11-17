@@ -87,8 +87,9 @@ public final class ScreenBlockEntityRenderer implements BlockEntityRenderer<Scre
                     double dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
                     double maxDist = 32.0;
                     float atten = (float)Math.max(0.0, 1.0 - dist / maxDist);
-                    float slider = me.javivi.pp.sound.MultimediaVolume.getMasterMultiplier();
-                    player.setVolumeMultiplier(slider * atten);
+                    float globalVolume = me.javivi.pp.sound.MultimediaVolume.getMasterMultiplier();
+                    float screenVolume = be.getVolume(); // Volumen específico de la pantalla
+                    player.setVolumeMultiplier(screenVolume * globalVolume * atten);
                 }
             }
         } catch (Throwable ignored) {}

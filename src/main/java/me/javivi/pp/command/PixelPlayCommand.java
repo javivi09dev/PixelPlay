@@ -15,6 +15,7 @@ import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
+import net.minecraft.util.math.BlockPos;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.network.ServerPlayerEntity;
 import java.net.URI;
@@ -360,7 +361,10 @@ public final class PixelPlayCommand {
                                     }
                                     
                                     var preset = me.javivi.pp.screen.ScreenPreset.getPreset(presetId);
-                                    if (ctx.getSource().getServer().isSingleplayer()) {
+                                    var server = ctx.getSource().getServer();
+                                    
+                                    if (server.isSingleplayer()) {
+                                        // Singleplayer: execute on client
                                         MinecraftClient.getInstance().execute(() -> {
                                             var mc = MinecraftClient.getInstance();
                                             if (mc.world != null) {
@@ -369,6 +373,27 @@ public final class PixelPlayCommand {
                                                         for (int z = preset.getMin().getZ(); z <= preset.getMax().getZ(); z++) {
                                                             var pos = new net.minecraft.util.math.BlockPos(x, y, z);
                                                             var be = mc.world.getBlockEntity(pos);
+                                                            if (be instanceof me.javivi.pp.block.entity.ScreenBlockEntity screen) {
+                                                                screen.setScreenArea(preset.getMin(), preset.getMax());
+                                                                if (pos.equals(preset.getMin())) {
+                                                                    screen.setVideo(url, loop);
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        });
+                                    } else {
+                                        // Multiplayer: execute on server
+                                        server.execute(() -> {
+                                            var world = server.getWorld(ctx.getSource().getWorld().getRegistryKey());
+                                            if (world != null) {
+                                                for (int x = preset.getMin().getX(); x <= preset.getMax().getX(); x++) {
+                                                    for (int y = preset.getMin().getY(); y <= preset.getMax().getY(); y++) {
+                                                        for (int z = preset.getMin().getZ(); z <= preset.getMax().getZ(); z++) {
+                                                            var pos = new net.minecraft.util.math.BlockPos(x, y, z);
+                                                            var be = world.getBlockEntity(pos);
                                                             if (be instanceof me.javivi.pp.block.entity.ScreenBlockEntity screen) {
                                                                 screen.setScreenArea(preset.getMin(), preset.getMax());
                                                                 if (pos.equals(preset.getMin())) {
@@ -401,7 +426,10 @@ public final class PixelPlayCommand {
                             }
                             
                             var preset = me.javivi.pp.screen.ScreenPreset.getPreset(presetId);
-                            if (ctx.getSource().getServer().isSingleplayer()) {
+                            var server = ctx.getSource().getServer();
+                            
+                            if (server.isSingleplayer()) {
+                                // Singleplayer: execute on client
                                 MinecraftClient.getInstance().execute(() -> {
                                     var mc = MinecraftClient.getInstance();
                                     if (mc.world != null) {
@@ -418,9 +446,85 @@ public final class PixelPlayCommand {
                                         }
                                     }
                                 });
+                            } else {
+                                // Multiplayer: execute on server
+                                server.execute(() -> {
+                                    var world = server.getWorld(ctx.getSource().getWorld().getRegistryKey());
+                                    if (world != null) {
+                                        for (int x = preset.getMin().getX(); x <= preset.getMax().getX(); x++) {
+                                            for (int y = preset.getMin().getY(); y <= preset.getMax().getY(); y++) {
+                                                for (int z = preset.getMin().getZ(); z <= preset.getMax().getZ(); z++) {
+                                                    var pos = new net.minecraft.util.math.BlockPos(x, y, z);
+                                                    var be = world.getBlockEntity(pos);
+                                                    if (be instanceof me.javivi.pp.block.entity.ScreenBlockEntity screen) {
+                                                        screen.stopVideo();
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                });
                             }
                             
                             ctx.getSource().sendFeedback(() -> Text.literal("§a[PixelPlay] §cVideo detenido en preset '" + presetId + "'"), false);
+                            return 1;
+                        })
+                    )
+                )
+                
+                .then(CommandManager.literal("control")
+                    .then(CommandManager.argument("preset_id", StringArgumentType.word())
+                        .executes(ctx -> {
+                            var player = ctx.getSource().getPlayer();
+                            if (player == null) {
+                                ctx.getSource().sendError(Text.literal("§c[PixelPlay] Este comando solo puede ser usado por jugadores."));
+                                return 0;
+                            }
+                            
+                            String presetId = StringArgumentType.getString(ctx, "preset_id");
+                            
+                            if (!me.javivi.pp.screen.ScreenPreset.hasPreset(presetId)) {
+                                ctx.getSource().sendError(Text.literal("§c[PixelPlay] Preset '" + presetId + "' no encontrado."));
+                                return 0;
+                            }
+                            
+                            var preset = me.javivi.pp.screen.ScreenPreset.getPreset(presetId);
+                            BlockPos screenMin = preset.getMin();
+                            
+                            if (ctx.getSource().getServer().isSingleplayer()) {
+                                // Singleplayer: abrir GUI directamente
+                                MinecraftClient.getInstance().execute(() -> {
+                                    var mc = MinecraftClient.getInstance();
+                                    if (mc.world != null) {
+                                        var be = mc.world.getBlockEntity(screenMin);
+                                        if (be instanceof me.javivi.pp.block.entity.ScreenBlockEntity) {
+                                            mc.setScreen(new me.javivi.pp.client.gui.ScreenControlScreen(screenMin));
+                                        } else {
+                                            ctx.getSource().sendError(Text.literal("§c[PixelPlay] No se encontró la pantalla del preset '" + presetId + "'."));
+                                        }
+                                    }
+                                });
+                            } else {
+                                // Multiplayer: ejecutar en servidor y abrir GUI en cliente
+                                var server = ctx.getSource().getServer();
+                                server.execute(() -> {
+                                    var world = server.getWorld(ctx.getSource().getWorld().getRegistryKey());
+                                    if (world != null) {
+                                        var be = world.getBlockEntity(screenMin);
+                                        if (be instanceof me.javivi.pp.block.entity.ScreenBlockEntity) {
+                                            // Enviar payload al cliente para abrir GUI
+                                            // Por ahora, solo funciona en singleplayer o si el jugador está en el cliente
+                                            if (player instanceof net.minecraft.server.network.ServerPlayerEntity serverPlayer) {
+                                                // Enviar mensaje para que el cliente abra la GUI
+                                                // Necesitamos un payload para esto, pero por ahora usamos el método directo
+                                                ctx.getSource().sendFeedback(() -> Text.literal("§a[PixelPlay] §eUsa el comando en el cliente para abrir la interfaz."), false);
+                                            }
+                                        } else {
+                                            ctx.getSource().sendError(Text.literal("§c[PixelPlay] No se encontró la pantalla del preset '" + presetId + "'."));
+                                        }
+                                    }
+                                });
+                            }
                             return 1;
                         })
                     )

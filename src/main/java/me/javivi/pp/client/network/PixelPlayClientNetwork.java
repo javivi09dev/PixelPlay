@@ -13,6 +13,8 @@ import me.javivi.pp.network.payload.StartAudioPayload;
 import me.javivi.pp.network.payload.StopAudioPayload;
 import me.javivi.pp.network.payload.StartImagePayload;
 import me.javivi.pp.network.payload.ScreenVideoPayload;
+import me.javivi.pp.network.payload.ScreenVolumePayload;
+import me.javivi.pp.network.payload.ScreenPausePayload;
 import me.javivi.pp.util.Easing;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
@@ -88,12 +90,40 @@ public final class PixelPlayClientNetwork {
                             if (p.min() != null && p.max() != null) {
                                 screen.setScreenArea(p.min(), p.max());
                             }
-                            // Update video
+                            // Update video using internal method to avoid re-syncing
                             if (p.url() != null && !p.url().isEmpty()) {
-                                screen.setVideo(p.url(), p.loop());
+                                screen.setVideoFromServer(p.url(), p.loop());
                             } else {
                                 screen.stopVideo();
                             }
+                        }
+                    }
+                });
+            }
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(ScreenVolumePayload.ID, (payload, context) -> {
+            if (payload instanceof ScreenVolumePayload p) {
+                var mc = MinecraftClient.getInstance();
+                mc.execute(() -> {
+                    if (mc.world != null) {
+                        var be = mc.world.getBlockEntity(p.pos());
+                        if (be instanceof me.javivi.pp.block.entity.ScreenBlockEntity screen) {
+                            screen.setVolumeFromServer(p.volume());
+                        }
+                    }
+                });
+            }
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(ScreenPausePayload.ID, (payload, context) -> {
+            if (payload instanceof ScreenPausePayload p) {
+                var mc = MinecraftClient.getInstance();
+                mc.execute(() -> {
+                    if (mc.world != null) {
+                        var be = mc.world.getBlockEntity(p.pos());
+                        if (be instanceof me.javivi.pp.block.entity.ScreenBlockEntity screen) {
+                            screen.setPausedFromServer(p.paused());
                         }
                     }
                 });
