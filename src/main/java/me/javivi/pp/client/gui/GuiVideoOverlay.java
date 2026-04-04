@@ -1,68 +1,118 @@
 package me.javivi.pp.client.gui;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-import me.javivi.pp.play.VideoSession;
 import me.javivi.pp.play.EaseSession;
 import me.javivi.pp.play.ImageSession;
+import me.javivi.pp.play.VideoSession;
 import me.javivi.pp.util.Easing;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.render.*;
-import org.jetbrains.annotations.Nullable;
-import org.joml.Matrix4f;
-
 import me.javivi.pp.wm.CustomVideoPlayer;
-
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gl.RenderPipelines;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.texture.TextureManager;
+import net.minecraft.util.Identifier;
+import org.jetbrains.annotations.Nullable;
 
 public final class GuiVideoOverlay {
+    private static final float ASPECT_EPS = 0.0005f;
+
+    private static final Identifier VIDEO_TEXTURE_ID = Identifier.of("pixelplay", "internal_wm_video_overlay");
+    private static final Identifier IMAGE_TEXTURE_ID = Identifier.of("pixelplay", "internal_wm_image_overlay");
+
     private final MinecraftClient mc;
     private @Nullable VideoSession session;
     private @Nullable ImageSession imageSession;
     private @Nullable EaseSession ease;
-    private final net.minecraft.util.Identifier runtimeId = net.minecraft.util.Identifier.of("pixelplay", "overlay_runtime");
-    private int lastRegisteredTex = -1;
+
+    private int lastVideoTex = -1;
+    private int lastVideoTw = -1;
+    private int lastVideoTh = -1;
+
+    private int lastImageTex = -1;
+    private int lastImageTw = -1;
+    private int lastImageTh = -1;
+
+    private final int[] glSizeScratch = new int[2];
 
     public GuiVideoOverlay(MinecraftClient mc) {
         this.mc = mc;
     }
 
     public void setSession(@Nullable VideoSession session) {
+        if (this.session != null && session == null) {
+            unregisterVideoOverlayTexture();
+        }
         this.session = session;
     }
 
     public void setImageSession(@Nullable ImageSession imageSession) {
+        if (this.imageSession != null && imageSession == null) {
+            unregisterImageOverlayTexture();
+        }
         this.imageSession = imageSession;
     }
 
-    public void setEase(@Nullable EaseSession ease) { this.ease = ease; }
+    public void setEase(@Nullable EaseSession ease) {
+        this.ease = ease;
+    }
 
-    // Dibuja SOLO la capa de ease, para usar desde TAIL del HUD
-    public void renderEaseOnly(DrawContext context, float tickDelta) {
+    private void unregisterVideoOverlayTexture() {
+        TextureManager tm = mc.getTextureManager();
+        try {
+            tm.destroyTexture(VIDEO_TEXTURE_ID);
+        } catch (Throwable ignored) {}
+        lastVideoTex = -1;
+        lastVideoTw = -1;
+        lastVideoTh = -1;
+    }
+
+    private void unregisterImageOverlayTexture() {
+        TextureManager tm = mc.getTextureManager();
+        try {
+            tm.destroyTexture(IMAGE_TEXTURE_ID);
+        } catch (Throwable ignored) {}
+        lastImageTex = -1;
+        lastImageTw = -1;
+        lastImageTh = -1;
+    }
+
+    public void renderEaseOnly(DrawContext context, float tickProgress) {
         if (ease != null) {
             float a = ease.alpha();
-            if (a > 0.001f) fillFade(context, a, ease.isWhite() ? VideoSession.EaseColor.WHITE : VideoSession.EaseColor.BLACK);
-            if (ease.finished()) ease = null;
+            if (a > 0.001f) {
+                fillFade(context, a, ease.isWhite() ? VideoSession.EaseColor.WHITE : VideoSession.EaseColor.BLACK);
+            }
+            if (ease.finished()) {
+                ease = null;
+            }
         }
     }
 
-    public void render(DrawContext context, float tickDelta) {
+    public void render(DrawContext context, float tickProgress) {
         int sw = mc.getWindow().getScaledWidth();
         int sh = mc.getWindow().getScaledHeight();
 
-        // 1) Vídeo si hay sesión activa
         if (session != null) {
-            if (session.isStopped()) { this.session = null; }
-            else if (session.hasError()) { session.stop(); this.session = null; }
-            else {
+            if (session.isStopped()) {
+                unregisterVideoOverlayTexture();
+                this.session = null;
+            } else if (session.hasError()) {
+                session.stop();
+                unregisterVideoOverlayTexture();
+                this.session = null;
+            } else {
                 CustomVideoPlayer player = session.player();
                 if (player != null) {
-                    try { player.setVolumeMultiplier(me.javivi.pp.sound.MultimediaVolume.getMasterMultiplier()); } catch (Throwable ignored) {}
+                    try {
+                        player.setVolumeMultiplier(me.javivi.pp.sound.MultimediaVolume.getMasterMultiplier());
+                    } catch (Throwable ignored) {
+                    }
 
                     int tex;
                     try {
                         tex = player.preRender();
                     } catch (Throwable t) {
                         session.stop();
+                        unregisterVideoOverlayTexture();
                         this.session = null;
                         tex = 0;
                     }
@@ -71,25 +121,19 @@ public final class GuiVideoOverlay {
 
                         int vw = Math.max(1, player.width());
                         int vh = Math.max(1, player.height());
-                        if (vw <= 1 || vh <= 1) { vw = sw; vh = sh; }
+                        if (vw <= 1 || vh <= 1) {
+                            vw = sw;
+                            vh = sh;
+                        }
 
-                        float screenAspect = (float) sw / (float) sh;
-                        float videoAspect = (float) vw / (float) vh;
-                        int dw = sw;
-                        int dh = sh;
-                        if (videoAspect > screenAspect) { dh = sh; dw = Math.round(sh * videoAspect); }
-                        else if (videoAspect < screenAspect) { dw = sw; dh = Math.round(sw / videoAspect); }
-                        int dx = (sw - dw) / 2;
-                        int dy = (sh - dh) / 2;
+                        GlTextureSize.getBound2DSize(tex, glSizeScratch);
+                        int tw = glSizeScratch[0] > 0 ? glSizeScratch[0] : vw;
+                        int th = glSizeScratch[1] > 0 ? glSizeScratch[1] : vh;
 
-                        RenderSystem.disableScissor();
-                        RenderSystem.disableCull();
-                        RenderSystem.depthMask(false);
-                        RenderSystem.enableBlend();
-                        RenderSystem.defaultBlendFunc();
-                        RenderSystem.disableDepthTest();
-                        RenderSystem.colorMask(true, true, true, true);
-                        RenderSystem.setShader(GameRenderer::getPositionTexProgram);
+                        int rw = Math.min(vw, tw);
+                        int rh = Math.min(vh, th);
+
+                        BlitRect rect = fitCover(sw, sh, vw, vh);
 
                         float videoAlpha = session.introAlphaFromFirstFrame();
                         long dur = player.getDuration();
@@ -100,130 +144,184 @@ public final class GuiVideoOverlay {
                             float outro = session.outroProgressMonotonic();
                             videoAlpha *= (1.0f - Easing.clamp01(outro));
                         }
-                        RenderSystem.setShaderColor(1f, 1f, 1f, Easing.clamp01(videoAlpha));
-                        if (tex != lastRegisteredTex) {
-                            mc.getTextureManager().registerTexture(runtimeId, new ExternalTexture(tex));
-                            lastRegisteredTex = tex;
+                        int argb = argb(Easing.clamp01(videoAlpha), 255, 255, 255);
+
+                        if (tex != lastVideoTex || tw != lastVideoTw || th != lastVideoTh) {
+                            mc.getTextureManager().registerTexture(VIDEO_TEXTURE_ID, new ExternalTexture(tex, tw, th));
+                            lastVideoTex = tex;
+                            lastVideoTw = tw;
+                            lastVideoTh = th;
                         }
-                        RenderSystem.setShaderTexture(0, runtimeId);
-                        RenderSystem.disableDepthTest();
-                        Matrix4f matrix = context.getMatrices().peek().getPositionMatrix();
-                        Tessellator tess = Tessellator.getInstance();
-                        BufferBuilder buf = tess.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE);
-                        buf.vertex(matrix, dx, dy, 0).texture(0f, 0f);
-                        buf.vertex(matrix, dx + dw, dy, 0).texture(1f, 0f);
-                        buf.vertex(matrix, dx + dw, dy + dh, 0).texture(1f, 1f);
-                        buf.vertex(matrix, dx, dy + dh, 0).texture(0f, 1f);
-                        BufferRenderer.drawWithGlobalProgram(buf.end());
-                        RenderSystem.depthMask(true);
+
+                        context.drawTexture(
+                            RenderPipelines.GUI_TEXTURED,
+                            VIDEO_TEXTURE_ID,
+                            rect.dx,
+                            rect.dy,
+                            0f,
+                            0f,
+                            rect.dw,
+                            rect.dh,
+                            rw,
+                            rh,
+                            tw,
+                            th,
+                            argb
+                        );
+
                         float introMask = session.maskIntroAlphaNow();
-                        if (introMask > 0.001f) fillFade(context, introMask, session.easeColor());
-                        RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
-                        RenderSystem.enableDepthTest();
-                        RenderSystem.disableBlend();
+                        if (introMask > 0.001f) {
+                            fillFade(context, introMask, session.easeColor());
+                        }
                     }
                 }
             }
         }
 
-        // 1.5) Imagen si hay sesión activa
         if (imageSession != null) {
-            if (imageSession.isStopped()) { this.imageSession = null; }
-            else if (imageSession.hasError()) { imageSession.stop(); this.imageSession = null; }
-            else if (imageSession.isLoaded()) {
+            if (imageSession.isStopped()) {
+                unregisterImageOverlayTexture();
+                this.imageSession = null;
+            } else if (imageSession.hasError()) {
+                imageSession.stop();
+                unregisterImageOverlayTexture();
+                this.imageSession = null;
+            } else if (imageSession.isLoaded()) {
                 imageSession.markFirstFrame();
-                imageSession.updateDimensions(); // Update dimensions if available
+                imageSession.updateDimensions();
 
                 int imgSw = mc.getWindow().getScaledWidth();
                 int imgSh = mc.getWindow().getScaledHeight();
                 int iw = imageSession.getImageWidth();
                 int ih = imageSession.getImageHeight();
-                if (iw <= 1 || ih <= 1) { iw = imgSw; ih = imgSh; }
-
-                float screenAspect = (float) imgSw / (float) imgSh;
-                float imageAspect = (float) iw / (float) ih;
-                int dw = imgSw;
-                int dh = imgSh;
-                if (imageAspect > screenAspect) { dh = imgSh; dw = Math.round(imgSh * imageAspect); }
-                else if (imageAspect < screenAspect) { dw = imgSw; dh = Math.round(imgSw / imageAspect); }
-                int dx = (imgSw - dw) / 2;
-                int dy = (imgSh - dh) / 2;
-
-                RenderSystem.disableScissor();
-                RenderSystem.disableCull();
-                RenderSystem.depthMask(false);
-                RenderSystem.enableBlend();
-                RenderSystem.defaultBlendFunc();
-                RenderSystem.disableDepthTest();
-                RenderSystem.colorMask(true, true, true, true);
-                RenderSystem.setShader(GameRenderer::getPositionTexProgram);
-
-                float imageAlpha = imageSession.introAlphaFromFirstFrame();
-                if (imageSession.hasOutro()) {
-                    imageSession.maybeStartOutro();
-                    float outro = imageSession.outroProgressMonotonic();
-                    imageAlpha *= (1.0f - Easing.clamp01(outro));
+                if (iw <= 1 || ih <= 1) {
+                    iw = imgSw;
+                    ih = imgSh;
                 }
-                RenderSystem.setShaderColor(1f, 1f, 1f, Easing.clamp01(imageAlpha));
-                
-                // Use texture from ImageRenderer (supports animated GIFs)
-                // Get texture ID each frame for animated images
+
                 int texId = imageSession.getTextureIdFromRenderer();
                 if (texId > 0) {
-                    // Register texture if it changed (for animated GIFs)
-                    if (texId != lastRegisteredTex) {
-                        mc.getTextureManager().registerTexture(runtimeId, new ExternalTexture(texId));
-                        lastRegisteredTex = texId;
+                    GlTextureSize.getBound2DSize(texId, glSizeScratch);
+                    int tw = glSizeScratch[0] > 0 ? glSizeScratch[0] : iw;
+                    int th = glSizeScratch[1] > 0 ? glSizeScratch[1] : ih;
+                    int rw = Math.min(iw, tw);
+                    int rh = Math.min(ih, th);
+
+                    BlitRect rect = fitCover(imgSw, imgSh, iw, ih);
+
+                    float imageAlpha = imageSession.introAlphaFromFirstFrame();
+                    if (imageSession.hasOutro()) {
+                        imageSession.maybeStartOutro();
+                        float outro = imageSession.outroProgressMonotonic();
+                        imageAlpha *= (1.0f - Easing.clamp01(outro));
                     }
-                    RenderSystem.setShaderTexture(0, runtimeId);
+                    int argb = argb(Easing.clamp01(imageAlpha), 255, 255, 255);
+
+                    if (texId != lastImageTex || tw != lastImageTw || th != lastImageTh) {
+                        mc.getTextureManager().registerTexture(IMAGE_TEXTURE_ID, new ExternalTexture(texId, tw, th));
+                        lastImageTex = texId;
+                        lastImageTw = tw;
+                        lastImageTh = th;
+                    }
+
+                    context.drawTexture(
+                        RenderPipelines.GUI_TEXTURED,
+                        IMAGE_TEXTURE_ID,
+                        rect.dx,
+                        rect.dy,
+                        0f,
+                        0f,
+                        rect.dw,
+                        rect.dh,
+                        rw,
+                        rh,
+                        tw,
+                        th,
+                        argb
+                    );
                 } else if (imageSession.textureId() != null) {
-                    // Fallback to registered texture if renderer texture not available
-                    RenderSystem.setShaderTexture(0, imageSession.textureId());
-                } else {
-                    // No texture available, skip rendering
-                    return;
+                    BlitRect rect = fitCover(imgSw, imgSh, iw, ih);
+                    float imageAlpha = imageSession.introAlphaFromFirstFrame();
+                    if (imageSession.hasOutro()) {
+                        imageSession.maybeStartOutro();
+                        float outro = imageSession.outroProgressMonotonic();
+                        imageAlpha *= (1.0f - Easing.clamp01(outro));
+                    }
+                    int argb = argb(Easing.clamp01(imageAlpha), 255, 255, 255);
+                    context.drawTexture(
+                        RenderPipelines.GUI_TEXTURED,
+                        imageSession.textureId(),
+                        rect.dx,
+                        rect.dy,
+                        0f,
+                        0f,
+                        rect.dw,
+                        rect.dh,
+                        256,
+                        256,
+                        argb
+                    );
                 }
-                RenderSystem.disableDepthTest();
-                Matrix4f matrix = context.getMatrices().peek().getPositionMatrix();
-                Tessellator tess = Tessellator.getInstance();
-                BufferBuilder buf = tess.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE);
-                buf.vertex(matrix, dx, dy, 0).texture(0f, 0f);
-                buf.vertex(matrix, dx + dw, dy, 0).texture(1f, 0f);
-                buf.vertex(matrix, dx + dw, dy + dh, 0).texture(1f, 1f);
-                buf.vertex(matrix, dx, dy + dh, 0).texture(0f, 1f);
-                BufferRenderer.drawWithGlobalProgram(buf.end());
-                RenderSystem.depthMask(true);
+
                 float introMask = imageSession.maskIntroAlphaNow();
-                if (introMask > 0.001f) fillFade(context, introMask, imageSession.easeColor());
-                RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
-                RenderSystem.enableDepthTest();
-                RenderSystem.disableBlend();
+                if (introMask > 0.001f) {
+                    fillFade(context, introMask, imageSession.easeColor());
+                }
             }
         }
 
-        // 2) Ease SIEMPRE dibuja, incluso sin vídeo, y al final (prioridad máxima)
         if (ease != null) {
             float a = ease.alpha();
-            if (a > 0.001f) fillFade(context, a, ease.isWhite() ? VideoSession.EaseColor.WHITE : VideoSession.EaseColor.BLACK);
-            if (ease.finished()) ease = null;
+            if (a > 0.001f) {
+                fillFade(context, a, ease.isWhite() ? VideoSession.EaseColor.WHITE : VideoSession.EaseColor.BLACK);
+            }
+            if (ease.finished()) {
+                ease = null;
+            }
         }
+    }
+
+    /**
+     * Escala para cubrir toda la ventana (pantalla completa); recorta lo que sobresale por los lados o arriba/abajo.
+     */
+    private static BlitRect fitCover(int sw, int sh, int cw, int ch) {
+        float screenAspect = (float) sw / (float) sh;
+        float contentAspect = (float) cw / (float) ch;
+        int dw;
+        int dh;
+        if (contentAspect > screenAspect + ASPECT_EPS) {
+            dh = sh;
+            dw = Math.max(1, Math.round(sh * contentAspect));
+        } else if (contentAspect < screenAspect - ASPECT_EPS) {
+            dw = sw;
+            dh = Math.max(1, Math.round((float) sw / contentAspect));
+        } else {
+            dw = sw;
+            dh = sh;
+        }
+        int dx = (sw - dw) / 2;
+        int dy = (sh - dh) / 2;
+        return new BlitRect(dx, dy, dw, dh);
+    }
+
+    private record BlitRect(int dx, int dy, int dw, int dh) {}
+
+    private static int argb(float a, int r, int g, int b) {
+        int ai = Math.round(Easing.clamp01(a) * 255.0f);
+        return (ai << 24) | ((r & 255) << 16) | ((g & 255) << 8) | (b & 255);
     }
 
     private void fillFade(DrawContext ctx, float alpha, VideoSession.EaseColor color) {
         int a = Math.round(Easing.clamp01(alpha) * 255.0f);
         int rgb = color == VideoSession.EaseColor.BLACK ? 0x000000 : 0xFFFFFF;
         int argb = (a << 24) | (rgb & 0xFFFFFF);
-        // Usar la capa de overlay del GUI y z muy frontal para asegurar prioridad máxima
-        ctx.fill(RenderLayer.getGuiOverlay(), 0, 0, mc.getWindow().getScaledWidth(), mc.getWindow().getScaledHeight(), -100, argb);
+        ctx.fill(0, 0, mc.getWindow().getScaledWidth(), mc.getWindow().getScaledHeight(), argb);
     }
 
     private void fillFade(DrawContext ctx, float alpha, ImageSession.EaseColor color) {
         int a = Math.round(Easing.clamp01(alpha) * 255.0f);
         int rgb = color == ImageSession.EaseColor.BLACK ? 0x000000 : 0xFFFFFF;
         int argb = (a << 24) | (rgb & 0xFFFFFF);
-        // Usar la capa de overlay del GUI y z muy frontal para asegurar prioridad máxima
-        ctx.fill(RenderLayer.getGuiOverlay(), 0, 0, mc.getWindow().getScaledWidth(), mc.getWindow().getScaledHeight(), -100, argb);
+        ctx.fill(0, 0, mc.getWindow().getScaledWidth(), mc.getWindow().getScaledHeight(), argb);
     }
 }
-
-

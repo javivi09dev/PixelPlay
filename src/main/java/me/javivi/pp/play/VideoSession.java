@@ -1,15 +1,16 @@
 package me.javivi.pp.play;
 
 import me.javivi.pp.util.Easing;
+import me.javivi.pp.util.MediaUrlUtil;
 import me.javivi.pp.util.TimeUtil;
+import me.javivi.pp.wm.CustomVideoPlayer;
 import net.minecraft.client.MinecraftClient;
 import org.jetbrains.annotations.Nullable;
-import org.watermedia.api.player.PlayerAPI;
-import me.javivi.pp.wm.CustomVideoPlayer;
-import org.watermedia.videolan4j.factory.MediaPlayerFactory;
+import org.watermedia.api.media.MediaAPI;
+import org.watermedia.api.media.MRL;
+import org.watermedia.api.media.players.FFMediaPlayer;
+import org.watermedia.api.media.players.MediaPlayer;
 
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Objects;
 
 
@@ -17,7 +18,6 @@ public final class VideoSession {
 
     public enum EaseColor { BLACK, WHITE }
 
-    private final MinecraftClient mc; 
     private final boolean freezeScreen;
     private final EaseColor easeColor;
     private final long introEaseMs;
@@ -25,7 +25,7 @@ public final class VideoSession {
     private final Easing.Curve easeCurve;
     private final long startMs;
 
-    private final CustomVideoPlayer player;
+    private final @Nullable CustomVideoPlayer player;
     private volatile boolean stopped;
     private volatile @Nullable String error;
     private volatile long firstFrameMs;
@@ -39,7 +39,6 @@ public final class VideoSession {
                         double introEaseSeconds,
                         double outroEaseSeconds,
                         Easing.Curve easeCurve) {
-        this.mc = mc;
         this.freezeScreen = freezeScreen;
         this.easeColor = easeColor;
         this.introEaseMs = TimeUtil.secondsToMillis(introEaseSeconds);
@@ -48,37 +47,46 @@ public final class VideoSession {
         this.startMs = System.currentTimeMillis();
         this.firstFrameMs = 0L;
 
-
-        String[] vlcArgs = new String[] {
-                "--no-quiet",
-                "--cr-average=5000",
-                "--swscale-mode=0",
-                "--network-caching=1500",
-                "--live-caching=1500",
-                "--file-caching=1500",
-                "--aout", "directsound,waveout,mmdevice",
-                "--vout", "none",
-                "--avcodec-skip-idct=4",
-                "--avcodec-fast",
-                "--avcodec-hw", "none",
-                "--no-metadata-network-access",
-                "--no-file-logging",
-                "--http-reconnect"
-        };
-        MediaPlayerFactory factory = new MediaPlayerFactory(vlcArgs);
-        this.player = new CustomVideoPlayer(factory, r -> this.mc.execute(r));
+        CustomVideoPlayer built = null;
         try {
-            if (!PlayerAPI.isReady()) {
+            if (MediaUrlUtil.isYoutubeWatchUrl(url)) {
+                this.error = "message.pixelplay.youtube_unsupported";
+            } else if (!FFMediaPlayer.loaded()) {
                 this.error = "message.pixelplay.vlc_not_ready";
             } else {
-                if (!freezeScreen) this.player.start(new URI(url));
-                else this.player.startPaused(new URI(url));
+                MRL mrl = MediaAPI.getMRL(url);
+                if (!mrl.await(30_000L)) {
+                    this.error = "message.pixelplay.mrl_timeout";
+                } else if (mrl.error()) {
+                    this.error = "message.pixelplay.mrl_error";
+                } else {
+                    Thread renderThread = Thread.currentThread();
+                    MediaPlayer mp = mrl.createPlayer(renderThread, r -> mc.execute(r), null, null, true, true);
+                    if (mp == null) {
+                        this.error = "message.pixelplay.player_create_failed";
+                    } else {
+                        built = new CustomVideoPlayer(mp);
+                        try {
+                            if (!freezeScreen) mp.start();
+                            else mp.startPaused();
+                        } catch (Throwable t) {
+                            try { built.release(); } catch (Throwable ignored) {}
+                            built = null;
+                            this.error = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
+                        }
+                    }
+                }
             }
-        } catch (URISyntaxException e) {
-            this.error = "message.pixelplay.invalid_url";
         } catch (Throwable t) {
-            this.error = t.getMessage();
+            if (built != null) {
+                try { built.release(); } catch (Throwable ignored) {}
+                built = null;
+            }
+            if (this.error == null) {
+                this.error = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
+            }
         }
+        this.player = built;
     }
 
     public boolean hasError() { return error != null; }
@@ -173,7 +181,6 @@ public final class VideoSession {
     public boolean freezeScreen() { return freezeScreen; }
     public EaseColor easeColor() { return easeColor; }
 
-    public CustomVideoPlayer player() { return player; }
+    public @Nullable CustomVideoPlayer player() { return player; }
 }
-
 

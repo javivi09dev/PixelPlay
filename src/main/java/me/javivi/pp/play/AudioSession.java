@@ -2,17 +2,18 @@ package me.javivi.pp.play;
 
 import me.javivi.pp.sound.MultimediaVolume;
 import me.javivi.pp.util.Easing;
+import me.javivi.pp.util.MediaUrlUtil;
 import me.javivi.pp.util.TimeUtil;
+import net.minecraft.client.MinecraftClient;
 import org.jetbrains.annotations.Nullable;
-import org.watermedia.api.player.PlayerAPI;
-import org.watermedia.api.player.videolan.MusicPlayer;
-
-import java.net.URI;
-import java.net.URISyntaxException;
+import org.watermedia.api.media.MediaAPI;
+import org.watermedia.api.media.MRL;
+import org.watermedia.api.media.players.FFMediaPlayer;
+import org.watermedia.api.media.players.MediaPlayer;
 
 
 public final class AudioSession {
-    private final MusicPlayer player;
+    private final @Nullable MediaPlayer player;
     private final long introMs;
     private final long outroMs;
     private final Easing.Curve easeCurve;
@@ -23,26 +24,55 @@ public final class AudioSession {
     private volatile @Nullable String error;
 
     public AudioSession(String url, double introSeconds, double outroSeconds, Easing.Curve curve) {
-        this.player = new MusicPlayer(PlayerAPI.getFactorySoundOnly());
+        MinecraftClient mc = MinecraftClient.getInstance();
+        MediaPlayer built = null;
         this.introMs = TimeUtil.secondsToMillis(introSeconds);
         this.outroMs = TimeUtil.secondsToMillis(outroSeconds);
         this.easeCurve = curve != null ? curve : Easing.Curve.EASE_IN_OUT_SINE;
         this.startMs = System.currentTimeMillis();
+
         try {
-            if (!PlayerAPI.isReady()) {
+            if (MediaUrlUtil.isYoutubeWatchUrl(url)) {
+                this.error = "message.pixelplay.youtube_unsupported";
+            } else if (mc == null) {
+                this.error = "message.pixelplay.client_not_ready";
+            } else if (!FFMediaPlayer.loaded()) {
                 this.error = "message.pixelplay.vlc_not_ready";
             } else {
-                this.player.start(new URI(url));
+                MRL mrl = MediaAPI.getMRL(url);
+                if (!mrl.await(30_000L)) {
+                    this.error = "message.pixelplay.mrl_timeout";
+                } else if (mrl.error()) {
+                    this.error = "message.pixelplay.mrl_error";
+                } else {
+                    built = mrl.createPlayer(Thread.currentThread(), r -> mc.execute(r), null, null, false, true);
+                    if (built == null) {
+                        this.error = "message.pixelplay.player_create_failed";
+                    } else {
+                        try {
+                            built.start();
+                        } catch (Throwable t) {
+                            try { built.release(); } catch (Throwable ignored) {}
+                            built = null;
+                            this.error = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
+                        }
+                    }
+                }
             }
-        } catch (URISyntaxException e) {
-            this.error = "message.pixelplay.invalid_url";
         } catch (Throwable t) {
-            this.error = t.getMessage();
+            if (built != null) {
+                try { built.release(); } catch (Throwable ignored) {}
+                built = null;
+            }
+            if (this.error == null) {
+                this.error = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
+            }
         }
+        this.player = built;
     }
 
     public boolean hasError() { return error != null; }
-    public @Nullable String error() { return error; }       
+    public @Nullable String error() { return error; }
 
     public void tick() {
         if (stopped) return;
@@ -55,11 +85,11 @@ public final class AudioSession {
                 if (dt < introMs) {
                     float t = (float) dt / (float) introMs;
                     float k = Easing.ease(t, easeCurve);
-                    player.setVolume(Math.round(k * volumeTarget));
+                    player.volume(Math.round(k * volumeTarget));
                     return;
                 }
             }
-            player.setVolume(volumeTarget);
+            player.volume(volumeTarget);
         } else {
             if (stopStartMs < 0L) stopStartMs = now;
             if (outroMs > 0) {
@@ -68,7 +98,7 @@ public final class AudioSession {
                 float t = (float) used / (float) outroMs;
                 float k = 1.0f - Easing.ease(t, easeCurve);
                 int v = Math.round(k * volumeTarget);
-                player.setVolume(v);
+                player.volume(v);
                 if (used >= outroMs) {
                     stopNow();
                 }
@@ -85,9 +115,8 @@ public final class AudioSession {
     private void stopNow() {
         if (stopped) return;
         stopped = true;
+        if (player == null) return;
         try { player.stop(); } catch (Throwable ignored) {}
         try { player.release(); } catch (Throwable ignored) {}
     }
 }
-
-

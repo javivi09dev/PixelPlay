@@ -2,24 +2,19 @@ package me.javivi.pp.client.network;
 
 import me.javivi.pp.client.PixelplayClient;
 import me.javivi.pp.client.playback.PlaybackManager;
-import me.javivi.pp.play.EaseSession;
-import me.javivi.pp.play.VideoSession;
 import me.javivi.pp.play.AudioSession;
+import me.javivi.pp.play.EaseSession;
 import me.javivi.pp.play.ImageSession;
-import me.javivi.pp.network.payload.StartVideoPayload;
-import me.javivi.pp.network.payload.StartEasePayload;
-import me.javivi.pp.network.payload.StopVideoPayload;
+import me.javivi.pp.play.VideoSession;
 import me.javivi.pp.network.payload.StartAudioPayload;
-import me.javivi.pp.network.payload.StopAudioPayload;
+import me.javivi.pp.network.payload.StartEasePayload;
 import me.javivi.pp.network.payload.StartImagePayload;
-import me.javivi.pp.network.payload.ScreenVideoPayload;
-import me.javivi.pp.network.payload.ScreenVolumePayload;
-import me.javivi.pp.network.payload.ScreenPausePayload;
-import me.javivi.pp.network.payload.OpenScreenControlPayload;
+import me.javivi.pp.network.payload.StartVideoPayload;
+import me.javivi.pp.network.payload.StopAudioPayload;
+import me.javivi.pp.network.payload.StopVideoPayload;
 import me.javivi.pp.util.Easing;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
-
 
 public final class PixelPlayClientNetwork {
     public static void init() {
@@ -29,7 +24,9 @@ public final class PixelPlayClientNetwork {
                 mc.execute(() -> {
                     var color = p.white() ? VideoSession.EaseColor.WHITE : VideoSession.EaseColor.BLACK;
                     var session = new VideoSession(mc, p.url(), p.freeze(), color, p.intro(), p.outro(), Easing.Curve.EASE_IN_OUT_SINE);
-                    PixelplayClient.setVideoSession(session);
+                    if (!session.hasError()) {
+                        PixelplayClient.setVideoSession(session);
+                    }
                 });
             }
         });
@@ -44,16 +41,14 @@ public final class PixelPlayClientNetwork {
         ClientPlayNetworking.registerGlobalReceiver(StopVideoPayload.ID, (payload, context) -> {
             if (payload instanceof StopVideoPayload) {
                 var mc = MinecraftClient.getInstance();
-                mc.execute(() -> {
-                    PlaybackManager.stopVideo();
-                });
+                mc.execute(PlaybackManager::stopVideo);
             }
         });
 
         ClientPlayNetworking.registerGlobalReceiver(StopAudioPayload.ID, (payload, context) -> {
             if (payload instanceof StopAudioPayload) {
                 var mc = MinecraftClient.getInstance();
-                mc.execute(() -> PlaybackManager.stopAudio());
+                mc.execute(PlaybackManager::stopAudio);
             }
         });
 
@@ -75,76 +70,11 @@ public final class PixelPlayClientNetwork {
                 mc.execute(() -> {
                     var color = p.white() ? ImageSession.EaseColor.WHITE : ImageSession.EaseColor.BLACK;
                     var session = new ImageSession(mc, p.url(), p.freeze(), color, p.intro(), p.outro(), p.duration(), Easing.Curve.EASE_IN_OUT_SINE);
-                    PixelplayClient.setImageSession(session);
-                });
-            }
-        });
-
-        ClientPlayNetworking.registerGlobalReceiver(ScreenVideoPayload.ID, (payload, context) -> {
-            if (payload instanceof ScreenVideoPayload p) {
-                var mc = MinecraftClient.getInstance();
-                mc.execute(() -> {
-                    if (mc.world != null) {
-                        var be = mc.world.getBlockEntity(p.pos());
-                        if (be instanceof me.javivi.pp.block.entity.ScreenBlockEntity screen) {
-                            // Update screen area if provided
-                            if (p.min() != null && p.max() != null) {
-                                screen.setScreenArea(p.min(), p.max());
-                            }
-                            // Update video using internal method to avoid re-syncing
-                            if (p.url() != null && !p.url().isEmpty()) {
-                                screen.setVideoFromServer(p.url(), p.loop());
-                            } else {
-                                screen.stopVideo();
-                            }
-                        }
-                    }
-                });
-            }
-        });
-
-        ClientPlayNetworking.registerGlobalReceiver(ScreenVolumePayload.ID, (payload, context) -> {
-            if (payload instanceof ScreenVolumePayload p) {
-                var mc = MinecraftClient.getInstance();
-                mc.execute(() -> {
-                    if (mc.world != null) {
-                        var be = mc.world.getBlockEntity(p.pos());
-                        if (be instanceof me.javivi.pp.block.entity.ScreenBlockEntity screen) {
-                            screen.setVolumeFromServer(p.volume());
-                        }
-                    }
-                });
-            }
-        });
-
-        ClientPlayNetworking.registerGlobalReceiver(ScreenPausePayload.ID, (payload, context) -> {
-            if (payload instanceof ScreenPausePayload p) {
-                var mc = MinecraftClient.getInstance();
-                mc.execute(() -> {
-                    if (mc.world != null) {
-                        var be = mc.world.getBlockEntity(p.pos());
-                        if (be instanceof me.javivi.pp.block.entity.ScreenBlockEntity screen) {
-                            screen.setPausedFromServer(p.paused());
-                        }
-                    }
-                });
-            }
-        });
-
-        ClientPlayNetworking.registerGlobalReceiver(OpenScreenControlPayload.ID, (payload, context) -> {
-            if (payload instanceof OpenScreenControlPayload p) {
-                var mc = MinecraftClient.getInstance();
-                mc.execute(() -> {
-                    if (mc.world != null) {
-                        var be = mc.world.getBlockEntity(p.pos());
-                        if (be instanceof me.javivi.pp.block.entity.ScreenBlockEntity) {
-                            mc.setScreen(new me.javivi.pp.client.gui.ScreenControlScreen(p.pos()));
-                        }
+                    if (!session.hasError()) {
+                        PixelplayClient.setImageSession(session);
                     }
                 });
             }
         });
     }
 }
-
-

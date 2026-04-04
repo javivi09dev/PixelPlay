@@ -16,7 +16,7 @@ public final class ClientOverlayEvents implements HudRenderCallback {
 
     @Override
     public void onHudRender(DrawContext drawContext, RenderTickCounter tickCounter) {
-        overlay.render(drawContext, tickCounter.getTickDelta(true));
+        overlay.render(drawContext, tickCounter.getTickProgress(true));
     }
 }
 

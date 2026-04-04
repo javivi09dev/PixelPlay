@@ -1,15 +1,15 @@
 package me.javivi.pp.play;
 
 import me.javivi.pp.util.Easing;
+import me.javivi.pp.util.MediaUrlUtil;
 import me.javivi.pp.util.TimeUtil;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.Nullable;
-import org.watermedia.api.image.ImageAPI;
-import org.watermedia.api.image.ImageCache;
-import org.watermedia.api.image.ImageRenderer;
+import org.watermedia.api.media.MediaAPI;
+import org.watermedia.api.media.MRL;
+import org.watermedia.api.media.players.MediaPlayer;
 
-import java.net.URI;
 import java.util.Objects;
 
 public final class ImageSession {
@@ -29,14 +29,10 @@ public final class ImageSession {
     private volatile long firstFrameMs;
     private static final long PRE_ROLL_MS = 150L;
     private volatile long outroStartMs = -1L;
-    
-    private @Nullable ImageCache imageCache = null;
-    private @Nullable ImageRenderer imageRenderer = null;
-    private @Nullable Identifier textureId = null;
-    private final String imageUrl;
+
+    private final @Nullable MediaPlayer player;
     private int imageWidth = 1;
     private int imageHeight = 1;
-    private volatile boolean loaded = false;
 
     public ImageSession(MinecraftClient mc,
                         String imageUrl,
@@ -55,80 +51,50 @@ public final class ImageSession {
         this.easeCurve = Objects.requireNonNullElse(easeCurve, Easing.Curve.EASE_IN_OUT_SINE);
         this.startMs = System.currentTimeMillis();
         this.firstFrameMs = 0L;
-        this.imageUrl = imageUrl;
 
-        // Load image using WaterMedia ImageAPI
-        loadImageAsync(imageUrl);
-    }
-
-    private void loadImageAsync(String imageUrl) {
+        MediaPlayer built = null;
         try {
-            URI uri = new URI(imageUrl);
-            
-            // Get cache from WaterMedia ImageAPI
-            mc.execute(() -> {
-                try {
-                    imageCache = ImageAPI.getCache(uri, mc);
-                    if (imageCache != null) {
-                        imageCache.use();
-                        imageCache.load();
-                        
-                        // Check status in a tick loop
-                        checkImageStatus();
-                    } else {
-                        this.error = "Failed to get image cache";
+            if (MediaUrlUtil.isYoutubeWatchUrl(imageUrl)) {
+                this.error = "message.pixelplay.youtube_unsupported";
+            } else {
+            MRL mrl = MediaAPI.getMRL(imageUrl);
+            if (!mrl.await(30_000L)) {
+                this.error = "message.pixelplay.mrl_timeout";
+            } else if (mrl.error()) {
+                this.error = "message.pixelplay.mrl_error";
+            } else {
+                built = mrl.createPlayer(Thread.currentThread(), r -> mc.execute(r), null, null, true, false);
+                if (built == null) {
+                    this.error = "message.pixelplay.player_create_failed";
+                } else {
+                    try {
+                        if (!freezeScreen) built.start();
+                        else built.startPaused();
+                    } catch (Throwable t) {
+                        try { built.release(); } catch (Throwable ignored) {}
+                        built = null;
+                        this.error = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
                     }
-                } catch (Exception e) {
-                    this.error = "Failed to load image: " + e.getMessage();
-                }
-            });
-        } catch (Exception e) {
-            this.error = "Invalid image URL: " + e.getMessage();
-        }
-    }
-    
-    private void checkImageStatus() {
-        if (imageCache == null || stopped) return;
-        
-        ImageCache.Status status = imageCache.getStatus();
-        
-        if (status == ImageCache.Status.READY) {
-            imageRenderer = imageCache.getRenderer();
-            if (imageRenderer != null) {
-                // Check if it's actually a video (shouldn't happen but handle it)
-                if (imageCache.isVideo()) {
-                    this.error = "URL is a video, not an image";
-                    return;
-                }
-                
-                // Get texture ID from renderer (texture() requires timestamp for animated GIFs)
-                try {
-                    long currentTime = System.currentTimeMillis();
-                    int texId = imageRenderer.texture(currentTime);
-                    if (texId > 0) {
-                        // Register texture with Minecraft
-                        this.textureId = Identifier.of("pixelplay", "image_" + currentTime + "_" + imageUrl.hashCode());
-                        mc.getTextureManager().registerTexture(this.textureId, new me.javivi.pp.client.gui.ExternalTexture(texId));
-                        
-                        // Try to get dimensions from renderer
-                        // ImageRenderer may not have direct width/height methods, use defaults for now
-                        // Dimensions will be updated when we actually render
-                        this.imageWidth = 1920; // Default fallback, will be updated on render
-                        this.imageHeight = 1080;
-                        
-                        this.loaded = true;
-                        this.firstFrameMs = currentTime;
-                    }
-                } catch (Exception e) {
-                    this.error = "Failed to get texture: " + e.getMessage();
                 }
             }
-        } else if (status == ImageCache.Status.FAILED) {
-            Exception ex = imageCache.getException();
-            this.error = ex != null ? ex.getMessage() : "Failed to load image";
-        } else {
-            // Still loading, check again next tick
-            mc.execute(() -> checkImageStatus());
+            }
+        } catch (Throwable t) {
+            if (built != null) {
+                try { built.release(); } catch (Throwable ignored) {}
+                built = null;
+            }
+            if (this.error == null) {
+                this.error = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
+            }
+        }
+        this.player = built;
+    }
+
+    /** Misma lógica que vídeo: tras el primer frame listo, sale de pausa si había freeze. */
+    public void tickPlayback() {
+        if (stopped || player == null || !freezeScreen) return;
+        if (!player.playing() && player.paused() && player.width() > 1 && player.height() > 1) {
+            player.resume();
         }
     }
 
@@ -140,23 +106,12 @@ public final class ImageSession {
     public void stop() {
         if (stopped) return;
         stopped = true;
-        mc.execute(() -> {
-            if (textureId != null) {
-                try {
-                    mc.getTextureManager().destroyTexture(textureId);
-                } catch (Throwable ignored) {}
-            }
-            if (imageRenderer != null) {
-                try {
-                    imageRenderer.release();
-                } catch (Throwable ignored) {}
-            }
-            if (imageCache != null) {
-                try {
-                    // ImageCache will handle cleanup automatically when not in use
-                } catch (Throwable ignored) {}
-            }
-        });
+        try {
+            if (player != null) player.stop();
+        } catch (Throwable ignored) {}
+        try {
+            if (player != null) player.release();
+        } catch (Throwable ignored) {}
     }
 
     public float introAlpha() {
@@ -168,7 +123,7 @@ public final class ImageSession {
     }
 
     public void markFirstFrame() {
-        if (firstFrameMs == 0L && loaded) firstFrameMs = System.currentTimeMillis();
+        if (firstFrameMs == 0L && isLoaded()) firstFrameMs = System.currentTimeMillis();
     }
 
     public float introAlphaFromFirstFrame() {
@@ -193,7 +148,7 @@ public final class ImageSession {
     }
 
     public float preRollAlpha() {
-        if (firstFrameMs != 0L || loaded) return 0f;
+        if (firstFrameMs != 0L || isLoaded()) return 0f;
         long dt = System.currentTimeMillis() - startMs;
         if (dt <= 0) return 0f;
         if (dt >= PRE_ROLL_MS) return 1f;
@@ -204,16 +159,14 @@ public final class ImageSession {
 
     public void maybeStartOutro() {
         if (outroStartMs >= 0L) return;
-        
+
         long elapsed = System.currentTimeMillis() - startMs;
-        
-        // Start outro if display duration is reached
+
         if (displayDurationMs > 0 && elapsed >= displayDurationMs) {
             outroStartMs = System.currentTimeMillis();
             return;
         }
-        
-        // Start outro if we're near the end of display duration
+
         if (displayDurationMs > 0 && outroEaseMs > 0) {
             long timeLeft = displayDurationMs - elapsed;
             if (timeLeft <= outroEaseMs && timeLeft > 0) {
@@ -247,36 +200,27 @@ public final class ImageSession {
 
     public boolean freezeScreen() { return freezeScreen; }
     public EaseColor easeColor() { return easeColor; }
-    public @Nullable Identifier textureId() { return textureId; }
-    public boolean isLoaded() { return loaded; }
+
+    /** Compatibilidad: WaterMedia 3 usa textura OpenGL directa vía {@link #getTextureIdFromRenderer()}. */
+    public @Nullable Identifier textureId() { return null; }
+
+    public boolean isLoaded() {
+        return player != null && !player.error() && player.width() > 0 && player.height() > 0;
+    }
+
     public int getImageWidth() { return imageWidth; }
     public int getImageHeight() { return imageHeight; }
-    public @Nullable ImageRenderer getImageRenderer() { return imageRenderer; }
-    
-    // Helper method to get texture ID from renderer if needed
-    public int getTextureIdFromRenderer() {
-        if (imageRenderer != null) {
-            try {
-                // texture() requires timestamp for animated GIFs
-                return imageRenderer.texture(System.currentTimeMillis());
-            } catch (Throwable ignored) {}
-        }
-        return 0;
-    }
-    
-    // Update dimensions from renderer when available
+
     public void updateDimensions() {
-        if (imageRenderer != null && loaded) {
-            try {
-                // Try to get actual dimensions - may need to check renderer API
-                // For now, we'll use the texture size or keep defaults
-                int texId = imageRenderer.texture(System.currentTimeMillis());
-                if (texId > 0) {
-                    // Dimensions might be available after first render
-                    // If ImageRenderer has dimension methods, use them here
-                }
-            } catch (Throwable ignored) {}
+        if (player != null && isLoaded()) {
+            imageWidth = Math.max(1, player.width());
+            imageHeight = Math.max(1, player.height());
         }
+    }
+
+    public int getTextureIdFromRenderer() {
+        if (player == null) return 0;
+        int t = player.texture();
+        return t > 0 ? t : 0;
     }
 }
-

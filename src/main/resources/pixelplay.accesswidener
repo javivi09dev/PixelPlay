@@ -1,0 +1,6 @@
+accessWidener v2 named
+
+extendable class net/minecraft/client/texture/GlTexture
+accessible method net/minecraft/client/texture/GlTexture <init> (ILjava/lang/String;Lcom/mojang/blaze3d/textures/TextureFormat;IIIII)V
+extendable class net/minecraft/client/texture/GlTextureView
+accessible method net/minecraft/client/texture/GlTextureView <init> (Lnet/minecraft/client/texture/GlTexture;II)V

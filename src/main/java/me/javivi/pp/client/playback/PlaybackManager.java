@@ -148,6 +148,7 @@ public final class PlaybackManager {
         }
         if (imageSession != null) {
             try {
+                imageSession.tickPlayback();
                 imageSession.maybeStartOutro();
                 if (imageSession.shouldStop() || imageSession.isStopped() || imageSession.hasError()) {
                     try { imageSession.stop(); } catch (Throwable ignored) {}

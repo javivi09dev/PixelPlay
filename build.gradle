@@ -1,5 +1,5 @@
 plugins {
-    id 'fabric-loom' version '1.11-SNAPSHOT'
+    id 'fabric-loom' version '1.14.10'
     id 'maven-publish'
 }
 
@@ -10,11 +10,8 @@ base {
     archivesName = project.archives_base_name
 }
 
-
-fabricApi {
-    configureDataGeneration {
-        client = true
-    }
+loom {
+    accessWidenerPath = file("src/main/resources/pixelplay.accesswidener")
 }
 
 repositories {
@@ -23,6 +20,7 @@ repositories {
     // Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
     // See https://docs.gradle.org/current/userguide/declaring_repositories.html
     // for more information about repositories.
+    maven { url 'https://api.modrinth.com/maven' }
     maven { url 'https://jitpack.io' }
 }
 
@@ -34,8 +32,8 @@ dependencies {
 
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
-    // WaterMedia multimedia API
-    modImplementation "com.github.WaterMediaTeam:watermedia:2.1.28"
+    // WaterMedia 3.x (Modrinth; JitPack tag differs from release version)
+    modImplementation "maven.modrinth:watermedia:3.0.0-beta.11"
     
     // Gson for JSON handling
     implementation "com.google.code.gson:gson:2.10.1"

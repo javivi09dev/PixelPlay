@@ -18,11 +18,12 @@ public class PixelplayClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         MinecraftClient mc = MinecraftClient.getInstance();
+        me.javivi.pp.network.PixelPlayNetwork.init();
+        me.javivi.pp.sound.MultimediaVolume.init();
         OVERLAY = new GuiVideoOverlay(mc);
         HudRenderCallback.EVENT.register(new ClientOverlayEvents(mc, OVERLAY));
         PixelPlayClientNetwork.init();
         ClientTickEvents.END_CLIENT_TICK.register(new ClientTickHandler());
-        me.javivi.pp.registry.client.ModBlockEntityRenderers.registerClient();
     }
 
     public static void setVideoSession(VideoSession session) {

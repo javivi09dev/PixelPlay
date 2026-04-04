@@ -1,0 +1,41 @@
+plugins {
+    id 'java'
+}
+
+group = 'me.javivi'
+version = '1.0.0'
+description = 'Sends PixelPlay custom payloads to Fabric clients (Folia/Paper)'
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://repo.papermc.io/repository/maven-public/' }
+}
+
+dependencies {
+    compileOnly 'io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+    withSourcesJar()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 21
+}
+
+processResources {
+    filteringCharset = 'UTF-8'
+    def props = [version: version]
+    inputs.properties props
+    filesMatching('plugin.yml') {
+        expand props
+    }
+}
+
+jar {
+    archiveBaseName = 'PixelPlayFolia'
+}
