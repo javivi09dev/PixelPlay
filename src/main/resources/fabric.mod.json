@@ -3,33 +3,31 @@
   "id": "pixelplay",
   "version": "${version}",
   "name": "PixelPlay",
-  "description": "Plays videos, fades and audio for players easily!",
+  "description": "Plays videos, fades and audio for players easily! Client-only; use PixelPlayFolia on the server.",
   "authors": [
     "Javivi"
   ],
-  "contact": {},
-  "url": "https://javivi.dev",
+  "contact": {
+    "homepage": "https://javivi.dev"
+  },
   "license": "All-Rights-Reserved",
   "icon": "assets/pixelplay/icon.png",
-  "environment": "*",
+  "environment": "client",
   "entrypoints": {
-    "fabric-datagen": [
-      "me.javivi.pp.client.PixelplayDataGenerator"
-    ],
     "client": [
       "me.javivi.pp.client.PixelplayClient"
-    ],
-    "main": [
-      "me.javivi.pp.Pixelplay"
     ]
   },
+  "accessWideners": [
+    "pixelplay.accesswidener"
+  ],
   "mixins": [
     "pixelplay.mixins.json"
   ],
   "depends": {
-    "fabricloader": ">=0.16.0",
-    "fabric": "*",
+    "fabricloader": ">=0.18.0",
+    "fabric-api": "*",
     "minecraft": "${minecraft_version}",
-    "watermedia": ">=2.1.0"
+    "watermedia": ">=3.0.0-beta.11"
   }
 }
